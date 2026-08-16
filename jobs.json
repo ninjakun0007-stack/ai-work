@@ -3,62 +3,47 @@
   "search_conditions": {
     "keyword": "Python / AI / Web",
     "minimum_monthly_pay": 500000,
+    "minimum_ai_score": 80,
+    "minimum_automation_score": 70,
     "remote_priority": true,
-    "minimum_ai_score": 80
+    "ai_only_work_priority": true
   },
-  "count": 4,
+  "ranking_weights": {
+    "automation": 0.35,
+    "ai": 0.25,
+    "remote": 0.25,
+    "reward": 0.15
+  },
+  "count": 1,
   "jobs": [
     {
-      "title": "【生成AI】次世代コールセンター自動化プロジェクト",
-      "reward": "週5日 | 〜1,100,000円 / 月",
-      "description": "大手通信キャリア向けコールセンター自動化プロジェクト。生成AIを用いた提案・実装、音声認識等を活用。必須にOpenAI API (GPT)、Google Gemini、RAG、LangChain、LlamaIndex、Pythonライブラリの活用経験を明示。",
-      "remote": "ハイブリッド（天王洲アイルおよびリモートワーク）",
-      "score": 100,
+      "title": "【生成AI】次世代コールセンター自動化プロジェクト（AI・機械学習エンジニア）",
+      "reward": "〜1,100,000円/月",
+      "description": "大手通信キャリア向けコールセンターのカスタマー業務を生成AI（OpenAI/Gemini等）、RAG、音声認識等で自動化するプロジェクト。AIの技術的アイデア出し・提案と実装を担当。LangChain、LlamaIndex、Hugging Face 等の利用経験が求められる。",
+      "remote": "天王洲アイルおよびリモートワーク（ハイブリッド）",
+      "score": 84,
       "recommended": true,
-      "reason": "OpenAI/Gemini/RAG/LangChain/LlamaIndex等の明確な利用要件がありAI適合度が非常に高い。報酬も最高値帯であるため優先度が高い。",
+      "reason": "生成AI・RAG・OpenAI API等の活用が明記され、Pythonライブラリ（LangChain等）要件もあるためAI活用度・Python適合度が高い。報酬レンジも高く、APIベースで自動化しやすい領域。",
       "monthly_pay": 1100000,
-      "remote_score": 80,
-      "ranking_score": 92.0,
+      "remote_score": 90,
+      "automation_score": 82,
+      "automation_level": "80〜89: AIをかなり活用できる",
+      "automation_reason": "OpenAI/Gemini、RAG、LangChain等の使用が前提で、API中心・コード生成やテスト自動化・ドキュメント生成にAIを多く使える。一方、音声系の実装や運用・一部オンサイト要件があり完全自動化には人のレビューや設計知識が必要。",
+      "ai_automation_breakdown": {
+        "AIだけでコード作成しやすい": 80,
+        "AIだけで文章/資料作成しやすい": 90,
+        "AIによるテスト自動化が可能": 85,
+        "AIによるデバッグが可能": 75,
+        "APIを利用した自動化が可能": 95,
+        "定型作業が多い": 80,
+        "オンラインで完結できる": 85,
+        "人間による現地作業が少ない": 60,
+        "電話対応や対面対応が少ない": 80,
+        "資格/本人確認/現場作業への依存が少ない": 90
+      },
+      "ranking_score": 87.2,
+      "pay_score": 100,
       "rank": 1
-    },
-    {
-      "title": "【フルリモ/ Scala, Python/ 週3日〜】脳科学×AIプロダクトのサーバーサイド開発",
-      "reward": "週3日･4日･5日 | 〜580,000円 / 月",
-      "description": "脳科学×AIプロダクトのサーバーサイド開発。要件に基づく分析・モデル構築・プロダクト実装支援。Python と Scala を含む開発。タイトルにフルリモート明記。",
-      "remote": "フルリモート可",
-      "score": 88,
-      "recommended": true,
-      "reason": "医療/脳科学領域のAIプロダクトでAI適合度が高く、フルリモート対応のためリモート優先度が高い。報酬は中程度。",
-      "monthly_pay": 580000,
-      "remote_score": 100,
-      "ranking_score": 75.9,
-      "rank": 2
-    },
-    {
-      "title": "海底地形データ分析 ソフトウェア開発案件",
-      "reward": "週5日 | 〜880,000円 / 月",
-      "description": "MBESで取得した海底地形点群データをAIで分析するソフトウェア開発。Ubuntu/Windows/AWS対応、Python3.x、PyTorch/TensorFlow等を使用した機械学習実務経験必須。",
-      "remote": "常駐（中野、フル常駐）",
-      "score": 92,
-      "recommended": true,
-      "reason": "PyTorch/TensorFlowを用いる明確なML案件でAI適合度が非常に高い。ただしフル常駐のためリモート評価が低く相対順位が下がる。",
-      "monthly_pay": 880000,
-      "remote_score": 20,
-      "ranking_score": 63.5,
-      "rank": 3
-    },
-    {
-      "title": "【Python】IoT・AI自社サービスのWebアプリケーション開発",
-      "reward": "週3日･4日･5日 | 〜700,000円 / 月",
-      "description": "IoTとAIを含む自社サービスのWebアプリケーション開発。企画と連携した新機能開発、運用。PythonおよびAWSの利用が想定される。",
-      "remote": "不明（勤務地：原宿）",
-      "score": 85,
-      "recommended": true,
-      "reason": "AIおよびPythonを伴うWebアプリ案件でAI適合度が十分に高い。リモート可否が不明なためリモート評価は中程度だが報酬・技術適合は良好。",
-      "monthly_pay": 700000,
-      "remote_score": 40,
-      "ranking_score": 60.7,
-      "rank": 4
     }
   ]
 }
