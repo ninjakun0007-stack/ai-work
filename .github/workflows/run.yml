@@ -3,6 +3,9 @@ name: Job Search AI
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   job-search:
     runs-on: ubuntu-latest
