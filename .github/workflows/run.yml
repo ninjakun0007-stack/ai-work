@@ -17,7 +17,9 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install -r agent/job-search/requirements.txt
+        run: pip install -r agent/job-search/requirements.
 
-      - name: Run Job Search AI
-        run: python agent/job-search/agent.py
+　　　　- name: Run Job Search AI
+　　　　　env:
+    OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    run: python agent/job-search/agent.py
