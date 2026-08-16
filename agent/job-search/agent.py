@@ -5,443 +5,317 @@ import requests
 from bs4 import BeautifulSoup
 from openai import OpenAI
 
-# ==========================================
+# =========================
 # 設定
-# ==========================================
+# =========================
 
-URL = "https://tech-agent.lancers.jp/project?q_text=Python"
+SOURCE_URL = "https://tech-agent.lancers.jp/project?q_text=Python"
 
 MIN_MONTHLY_PAY = 500000
+MIN_AI_SCORE = 80
 
-client = OpenAI(
-    api_key=os.environ["OPENAI_API_KEY"]
-)
-
-headers = {
-    "User-Agent": "Mozilla/5.0"
-}
+# AI API
+client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 
-# ==========================================
-# 求人ページを取得
-# ==========================================
+# =========================
+# 案件ページ取得
+# =========================
 
-print("求人ページを取得しています...")
+def fetch_jobs():
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) "
+            "AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1"
+        )
+    }
 
-response = requests.get(
-    URL,
-    headers=headers,
-    timeout=30
-)
+    response = requests.get(
+        SOURCE_URL,
+        headers=headers,
+        timeout=30
+    )
 
-response.raise_for_status()
+    response.raise_for_status()
 
-soup = BeautifulSoup(
-    response.text,
-    "html.parser"
-)
+    soup = BeautifulSoup(response.text, "html.parser")
 
-page_text = soup.get_text(
-    "\n",
-    strip=True
-)
+    text = soup.get_text("\n", strip=True)
 
-print("求人ページ取得完了")
+    return text
 
 
-# ==========================================
-# AIに案件を分析させる
-# ==========================================
+# =========================
+# AIで案件を解析
+# =========================
 
-prompt = f"""
-あなたは案件検索・選別AIです。
+def analyze_jobs(page_text):
 
-以下の公開案件情報から、
-Python・AI・Web開発に関係する案件を抽出してください。
+    prompt = f"""
+あなたは求人・案件選別AIです。
 
-必ずJSON配列だけを返してください。
-Markdownの```は使用しないでください。
+以下の案件情報から、
+Python / AI / Web開発に関係する案件を抽出してください。
 
-各案件は以下の形式にしてください。
+条件：
+
+1. 月額報酬50万円以上
+2. AI・Python・Web開発との関連性を重視
+3. フルリモートを最優先
+4. リモート可を次に優先
+5. 常駐は順位を下げる
+6. AI適合度80点未満は除外
+7. 報酬が高いほど評価
+8. Python / OpenAI / Gemini / RAG / LangChain /
+   LlamaIndex / PyTorch / TensorFlow / AWS等を評価
+9. 同じ案件は重複させない
+
+スコアは0〜100。
+
+さらにランキングスコアを計算してください。
+
+ランキングの考え方：
+
+AI適合度       40%
+リモート       30%
+報酬           20%
+Python/Web     10%
+
+フルリモートはリモート点100、
+リモート可は80、
+ハイブリッドは70、
+不明は50、
+常駐は20程度を目安にしてください。
+
+必ずJSONだけを返してください。
+
+形式：
 
 [
   {{
-    "title": "案件名",
-    "reward": "報酬",
-    "description": "仕事内容",
-    "remote": "リモート条件",
+    "title": "",
+    "reward": "",
+    "description": "",
+    "remote": "",
     "score": 0,
     "recommended": true,
-    "reason": "おすすめ理由"
+    "reason": "",
+    "monthly_pay": 0,
+    "remote_score": 0,
+    "ranking_score": 0
   }}
 ]
 
-scoreは0〜100点。
-
-評価基準：
-
-1. Python / AI / Web開発との関連性
-2. 報酬
-3. リモート可能性
-4. 仕事内容の明確さ
-5. AIによる開発・自動化との相性
-
-特に以下を高く評価してください。
-
-・Python
-・生成AI
-・OpenAI API
-・RAG
-・機械学習
-・FastAPI
-・Django
-・Web開発
-・AWS
-・Docker
-・フルリモート
-・週3日〜週5日
-
 案件情報：
-
-{page_text[:30000]}
+{page_text[:50000]}
 """
 
-print("AIが案件を分析しています...")
-
-response = client.responses.create(
-    model="gpt-5-mini",
-    input=prompt
-)
-
-ai_result = response.output_text.strip()
-
-print("AI分析完了")
-
-
-# ==========================================
-# AI結果をJSONに変換
-# ==========================================
-
-try:
-    jobs = json.loads(ai_result)
-
-except json.JSONDecodeError:
-
-    print("AI結果のJSON解析に失敗しました。")
-
-    # Markdownの```が入っていた場合の対策
-    cleaned = re.sub(
-        r"```json|```",
-        "",
-        ai_result
-    ).strip()
-
-    try:
-        jobs = json.loads(cleaned)
-
-    except json.JSONDecodeError:
-        print(ai_result)
-        raise
-
-
-if not isinstance(jobs, list):
-    raise ValueError("AIの結果がJSON配列ではありません。")
-
-
-print(f"AIが取得した案件数: {len(jobs)}")
-
-
-# ==========================================
-# 報酬を数値化
-# ==========================================
-
-def extract_monthly_pay(reward):
-
-    if not reward:
-        return 0
-
-    reward = str(reward)
-
-    # 例：
-    # 1,100,000円
-    # 〜700,000円/月
-    # 月50万円〜70万円
-
-    # 「万円」表記
-    man_match = re.search(
-        r"(\d+(?:\.\d+)?)\s*万\s*円",
-        reward
+    response = client.responses.create(
+        model="gpt-5-mini",
+        input=prompt
     )
 
-    if man_match:
-        return int(
-            float(man_match.group(1)) * 10000
+    result = response.output_text
+
+    # ```json ... ``` が返ってきた場合に対応
+    result = result.strip()
+
+    if result.startswith("```"):
+        result = re.sub(r"^```json\s*", "", result)
+        result = re.sub(r"\s*```$", "", result)
+
+    return json.loads(result)
+
+
+# =========================
+# 条件フィルター
+# =========================
+
+def filter_jobs(jobs):
+
+    filtered = []
+
+    for job in jobs:
+
+        monthly_pay = job.get("monthly_pay", 0)
+        score = job.get("score", 0)
+
+        try:
+            monthly_pay = int(monthly_pay)
+        except:
+            monthly_pay = 0
+
+        try:
+            score = int(score)
+        except:
+            score = 0
+
+        # 月50万円未満を除外
+        if monthly_pay < MIN_MONTHLY_PAY:
+            continue
+
+        # AIスコア80未満を除外
+        if score < MIN_AI_SCORE:
+            continue
+
+        job["monthly_pay"] = monthly_pay
+        job["score"] = score
+
+        filtered.append(job)
+
+    return filtered
+
+
+# =========================
+# リモート優先ランキング
+# =========================
+
+def rank_jobs(jobs):
+
+    for job in jobs:
+
+        remote = str(job.get("remote", "")).lower()
+
+        # リモート評価
+        if "フルリモート" in remote:
+            remote_score = 100
+
+        elif "完全リモート" in remote:
+            remote_score = 100
+
+        elif "リモートワーク" in remote:
+            remote_score = 80
+
+        elif "リモート可" in remote:
+            remote_score = 80
+
+        elif "ハイブリッド" in remote:
+            remote_score = 70
+
+        elif "リモート" in remote:
+            remote_score = 70
+
+        elif "常駐" in remote:
+            remote_score = 20
+
+        else:
+            remote_score = 40
+
+        job["remote_score"] = remote_score
+
+        # 報酬スコア
+        pay = job.get("monthly_pay", 0)
+
+        # 50万円〜110万円程度を0〜100に変換
+        pay_score = min(
+            100,
+            max(
+                0,
+                ((pay - 500000) / 600000) * 100
+            )
         )
 
-    # 「円」表記
-    yen_match = re.search(
-        r"(\d[\d,]*)\s*円",
-        reward
-    )
+        # Python / AI / Web適合度
+        ai_score = job.get("score", 0)
 
-    if yen_match:
-        return int(
-            yen_match.group(1).replace(",", "")
+        # 総合ランキング
+        ranking_score = (
+            ai_score * 0.40
+            + remote_score * 0.30
+            + pay_score * 0.20
+            + 80 * 0.10
         )
 
-    return 0
+        job["ranking_score"] = round(ranking_score, 1)
 
-
-# ==========================================
-# リモート評価
-# ==========================================
-
-def remote_score(remote):
-
-    if not remote:
-        return 0
-
-    remote = str(remote)
-
-    if "フルリモート" in remote:
-        return 20
-
-    if "完全リモート" in remote:
-        return 20
-
-    if "リモートワーク" in remote:
-        return 12
-
-    if "リモート" in remote:
-        return 10
-
-    if "ハイブリッド" in remote:
-        return 5
-
-    if "常駐" in remote:
-        return -15
-
-    return 0
-
-
-# ==========================================
-# 週の稼働日数評価
-# ==========================================
-
-def work_days_score(job):
-
-    text = (
-        str(job.get("title", "")) +
-        " " +
-        str(job.get("description", ""))
+    # 高い順
+    jobs.sort(
+        key=lambda x: x.get("ranking_score", 0),
+        reverse=True
     )
 
-    if "週3日" in text:
-        return 5
+    # 順位を付ける
+    for index, job in enumerate(jobs, start=1):
+        job["rank"] = index
 
-    if "週4日" in text:
-        return 5
-
-    if "週5日" in text:
-        return 3
-
-    return 0
+    return jobs
 
 
-# ==========================================
-# Python / AI / Web評価
-# ==========================================
+# =========================
+# jobs.json 保存
+# =========================
 
-def technology_score(job):
+def save_jobs(jobs):
 
-    text = (
-        str(job.get("title", "")) +
-        " " +
-        str(job.get("description", ""))
-    ).lower()
-
-    score = 0
-
-    keywords = {
-        "python": 5,
-        "生成ai": 8,
-        "openai": 8,
-        "gpt": 5,
-        "rag": 8,
-        "機械学習": 8,
-        "ai": 5,
-        "fastapi": 5,
-        "django": 5,
-        "web": 5,
-        "aws": 3,
-        "docker": 3
+    output = {
+        "source": SOURCE_URL,
+        "search_conditions": {
+            "keyword": "Python / AI / Web",
+            "minimum_monthly_pay": MIN_MONTHLY_PAY,
+            "remote_priority": True,
+            "minimum_ai_score": MIN_AI_SCORE
+        },
+        "count": len(jobs),
+        "jobs": jobs
     }
 
-    for keyword, point in keywords.items():
+    with open(
+        "jobs.json",
+        "w",
+        encoding="utf-8"
+    ) as f:
 
-        if keyword in text:
-            score += point
+        json.dump(
+            output,
+            f,
+            ensure_ascii=False,
+            indent=2
+        )
 
-    return min(score, 20)
+    print("================================")
+    print("求人検索AI 完了")
+    print("================================")
 
+    print(f"抽出件数: {len(jobs)}")
 
-# ==========================================
-# 80点以上の案件を選別
-# ==========================================
-
-qualified_jobs = []
-
-for job in jobs:
-
-    original_score = job.get("score", 0)
-
-    if not isinstance(
-        original_score,
-        (int, float)
-    ):
-        original_score = 0
-
-    monthly_pay = extract_monthly_pay(
-        job.get("reward", "")
-    )
-
-    remote_bonus = remote_score(
-        job.get("remote", "")
-    )
-
-    days_bonus = work_days_score(
-        job
-    )
-
-    technology_bonus = technology_score(
-        job
-    )
-
-    # AI評価を基本点として使用
-    ranking_score = (
-        original_score
-        + remote_bonus
-        + days_bonus
-        + technology_bonus
-    )
-
-    # 月50万円未満は除外
-    if monthly_pay < MIN_MONTHLY_PAY:
-        continue
-
-    # AI評価80点未満も除外
-    if original_score < 80:
-        continue
-
-    job["monthly_pay"] = monthly_pay
-
-    job["ranking_score"] = ranking_score
-
-    job["recommended"] = True
-
-    qualified_jobs.append(job)
-
-
-# ==========================================
-# ランキング
-# ==========================================
-
-qualified_jobs.sort(
-    key=lambda job: job["ranking_score"],
-    reverse=True
-)
-
-
-# ==========================================
-# 順位を付ける
-# ==========================================
-
-for index, job in enumerate(
-    qualified_jobs,
-    start=1
-):
-
-    job["rank"] = index
-
-
-# ==========================================
-# jobs.jsonを作成
-# ==========================================
-
-data = {
-    "source": URL,
-
-    "search_conditions": {
-        "keyword": "Python / AI / Web",
-        "minimum_monthly_pay": MIN_MONTHLY_PAY,
-        "remote_priority": True,
-        "minimum_ai_score": 80
-    },
-
-    "count": len(qualified_jobs),
-
-    "jobs": qualified_jobs
-}
-
-
-with open(
-    "jobs.json",
-    "w",
-    encoding="utf-8"
-) as f:
-
-    json.dump(
-        data,
-        f,
-        ensure_ascii=False,
-        indent=2
-    )
-
-
-# ==========================================
-# 結果表示
-# ==========================================
-
-print("")
-print("==========================================")
-print("AI案件ランキング")
-print("==========================================")
-
-if not qualified_jobs:
-
-    print("条件に合う案件はありませんでした。")
-
-else:
-
-    for job in qualified_jobs:
-
+    for job in jobs:
         print(
             f"{job['rank']}位 "
-            f"{job['title']}"
+            f"{job['title']} "
+            f"月{job['monthly_pay']:,}円 "
+            f"AIスコア:{job['score']} "
+            f"ランキング:{job['ranking_score']}"
         )
 
-        print(
-            f"  AI評価: {job['score']}点"
-        )
-
-        print(
-            f"  月額: {job['monthly_pay']:,}円"
-        )
-
-        print(
-            f"  リモート: {job.get('remote', '不明')}"
-        )
-
-        print(
-            f"  ランキング: {job['ranking_score']}点"
-        )
-
-        print("")
+    print("jobs.json を作成しました")
 
 
-print("==========================================")
-print(
-    f"条件に合格した案件: {len(qualified_jobs)}件"
-)
-print("jobs.json を作成しました")
-print("==========================================")
+# =========================
+# メイン処理
+# =========================
+
+def main():
+
+    print("案件情報を取得しています...")
+
+    page_text = fetch_jobs()
+
+    print("AIで案件を分析しています...")
+
+    jobs = analyze_jobs(page_text)
+
+    print(f"AI抽出件数: {len(jobs)}")
+
+    jobs = filter_jobs(jobs)
+
+    print(
+        f"条件通過件数: {len(jobs)}"
+    )
+
+    jobs = rank_jobs(jobs)
+
+    save_jobs(jobs)
+
+
+if __name__ == "__main__":
+    main()
