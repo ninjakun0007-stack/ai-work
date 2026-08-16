@@ -3,34 +3,48 @@ name: Job Search AI
 on:
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
   job-search:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+
     steps:
+      # GitHubリポジトリを取得
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Python 3.11
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
+      # 必要なライブラリをインストール
       - name: Install dependencies
-        run: pip install -r agent/job-search/requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r agent/job-search/requirements.txt
 
+      # AI求人検索を実行
       - name: Run Job Search AI
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python agent/job-search/agent.py
+        run: |
+          python agent/job-search/agent.py
 
-      - name: Save jobs.json
+      # jobs.jsonをGitHubに保存
+      - name: Save job results
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
           git add jobs.json
-          git diff --cached --quiet || git commit -m "Update job search results"
-          git push
+
+          if git diff --cached --quiet; then
+            echo "jobs.json に変更はありません"
+          else
+            git commit -m "Update job search results"
+            git push
+          fi
