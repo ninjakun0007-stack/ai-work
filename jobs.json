@@ -1,4 +1,51 @@
 {
   "source": "https://tech-agent.lancers.jp/project?q_text=Python",
-  "ai_result": "[\n  {\n    \"title\": \"【生成AI】次世代コールセンター自動化プロジェクト\",\n    \"reward\": \"〜1,100,000円 / 月\",\n    \"description\": \"大手通信キャリア向けコールセンター業務を生成AIで自動化するプロジェクト。AIの技術アイデア出し、提案、実装。OpenAI/Gemini等のAPI利用、RAG構築、LangChain/LlamaIndex/Hugging Face等の利用経験を想定。\",\n    \"remote\": \"天王洲アイルおよびリモートワーク（ハイブリッド）\",\n    \"score\": 95,\n    \"recommended\": true,\n    \"reason\": \"生成AI、RAG、OpenAI/Gemini、LangChain等の明確なPython/AI技術要件があり、AI開発案件として高い関連性があるため。\"\n  },\n  {\n    \"title\": \"海底地形データ分析 ソフトウェア開発案件\",\n    \"reward\": \"〜880,000円 / 月\",\n    \"description\": \"マルチビーム音響測深機の点群データをAIで分析するソフトウェア開発。設計・コーディング・テスト、Ubuntu/Windows/AWS環境での実装。Python3.xと機械学習ライブラリ（PyTorch等）を用いた実務経験やDocker/Gitが必須。\",\n    \"remote\": \"中野（フル常駐）\",\n    \"score\": 90,\n    \"recommended\": true,\n    \"reason\": \"PyTorch/Pythonでの機械学習実装が明記されており、AI開発案件として適合度が高い。\"\n  },\n  {\n    \"title\": \"【Python】【講師】エンジニア育成のためのアシスタント講師案件\",\n    \"reward\": \"〜570,000円 / 月\",\n    \"description\": \"エンジニア育成のためのアシスタント講師。IT基礎やプログラミング環境の知識等を教える役割。インストラクション能力とコミュニケーション力重視。\",\n    \"remote\": \"案件毎に異なる（記載なし）\",\n    \"score\": 70,\n    \"recommended\": false,\n    \"reason\": \"Pythonに特化した案件だが、開発業務ではなく教育/講師業務のため、開発志向の案件を求める場合は関連度がやや低い。\"\n  },\n  {\n    \"title\": \"【Python】IoT・AI自社サービスのWebアプリケーション開発\",\n    \"reward\": \"〜700,000円 / 月\",\n    \"description\": \"IoT・AIを含む自社サービスのWebアプリケーション開発と運用。機能追加や既存顧客向けアップデートをアジャイル開発で担当。Python、AWSでの開発が想定。\",\n    \"remote\": \"東京都(23区内)（原宿駅）／詳細不明（おそらくリモート可あり）\",\n    \"score\": 88,\n    \"recommended\": true,\n    \"reason\": \"PythonとAIを含むWebアプリ開発案件であり、Web開発と機械学習・AIにまたがる実務に高い適合性があるため。\"\n  },\n  {\n    \"title\": \"【Python】サーバーエンジニア（社内向業務システムの再構築）\",\n    \"reward\": \"〜750,000円 / 月\",\n    \"description\": \"社内向業務システムの再構築、新規業務システム開発（取引先向け）。Django、Vue.js、PostgreSQL、Linux等を用いたサーバーサイド開発。常駐勤務（東京本部）。\",\n    \"remote\": \"東京本部（大塚）／フル常駐\",\n    \"score\": 85,\n    \"recommended\": true,\n    \"reason\": \"Python（Django）を中心としたWeb開発案件で、Webアプリ・サーバー開発に直結するため関連性が高い。\"\n  },\n  {\n    \"title\": \"【フルリモ/ Scala, Python/ 週3日〜】脳科学×AIプロダクトのサーバーサイド開発\",\n    \"reward\": \"〜580,000円 / 月\",\n    \"description\": \"脳科学×AIプロダクトのサーバーサイド開発。要件に基づく分析、モデル構築、実装サポートを担当。Scalaが主体だがPythonも技術スタックとして記載。フルリモート可、週3日〜稼働可。\",\n    \"remote\": \"フルリモート可（週3日〜）\",\n    \"score\": 78,\n    \"recommended\": false,\n    \"reason\": \"AIプロダクトでPythonが言及されているが、職種はScalaエンジニア寄りの募集のため、Python優先の候補者にはやや関連度が低め。\"\n  },\n  {\n    \"title\": \"【Dataspider】大手予約サービスの社内向けETLツール連携業務\",\n    \"reward\": \"〜660,000円 / 月\",\n    \"description\": \"Atlassian製品およびETL（Dataspider）連携の運用保守、機能追加、改修。必須はETLツール実装経験、Atlassian運用経験。Pythonでの開発経験やAWS経験が尚可。\",\n    \"remote\": \"基本フルリモート（初日出社の可能性あり）\",\n    \"score\": 65,\n    \"recommended\": false,\n    \"reason\": \"データ/ETL中心の案件で、Pythonは必須ではなく「尚可」のため、Python主体の案件を探す場合は優先度が低い。\"\n  }\n]"
+  "count": 5,
+  "jobs": [
+    {
+      "title": "【週5日/AI・機械学習エンジニア】【生成AI】次世代コールセンター自動化プロジェクト",
+      "reward": "〜1,100,000円 / 月",
+      "description": "コールセンター業務を生成AIで自動化するプロジェクト。AIの技術提案から実装まで担当。OpenAI API (GPT)・Google Gemini・RAG構築、LangChain/LlamaIndex/Hugging Face等のPythonライブラリ利用経験が求められる。音声認識／合成に関する知見やクラウド、コンテナ技術も歓迎。",
+      "remote": "天王洲アイルおよびリモートワーク（ハイブリッド）",
+      "score": 95,
+      "recommended": true,
+      "reason": "生成AI・RAG・主要Pythonライブラリの活用経験が必須で、AI研究・実装の両方に関わる高いマッチ度。報酬・技術要件ともに魅力的。"
+    },
+    {
+      "title": "【週5日/AI・機械学習エンジニア】海底地形データ分析 ソフトウェア開発案件",
+      "reward": "〜880,000円 / 月",
+      "description": "MBES（海底地形）点群データをAIで分析するソフトウェア開発。設計～コーディング～テストを担当。Ubuntu/Windows/AWSでの実装、Python3.xとPyTorch/TensorFlow等の機械学習ライブラリ利用経験またはAWS（SageMaker等）の経験が必須。Docker・Git必須。",
+      "remote": "中野 フル常駐（スーツ着用）",
+      "score": 92,
+      "recommended": true,
+      "reason": "機械学習（PyTorch/TensorFlow）を中心とした明確なPython/AI案件で、分析～実装まで関われるため高評価。"
+    },
+    {
+      "title": "【週3日･4日･5日/Pythonエンジニア】【Python】IoT・AI自社サービスのWebアプリケーション開発",
+      "reward": "〜700,000円 / 月",
+      "description": "IoT・AIを組み合わせた自社サービスのWebアプリケーション開発・運用。企画・営業と開発で連携しながら新機能追加や顧客向けアップデートに対応。PythonとAWSを用いる想定。",
+      "remote": "記載なし（勤務地：原宿駅付近）",
+      "score": 88,
+      "recommended": true,
+      "reason": "Pythonを用いたWebアプリ開発かつAI領域と連携するため、Python・Web・AIの希望に高く合致。稼働日数の柔軟性も魅力。"
+    },
+    {
+      "title": "【週5日/Pythonエンジニア】【Python】サーバーエンジニア（社内向業務システムの再構築）",
+      "reward": "〜750,000円 / 月",
+      "description": "社内向業務システムの再構築・新規開発。Django、Vue.js、PostgreSQL、Linux、GitLabなどを用いたサーバサイド開発。業務系システム中心で取引先向けの開発あり。",
+      "remote": "東京本部（大塚） 常駐",
+      "score": 85,
+      "recommended": true,
+      "reason": "Django等を用いた典型的なPythonサーバーサイド案件で、Web開発に集中したい方に適している。"
+    },
+    {
+      "title": "【週3日･4日･5日/Scalaエンジニア】【フルリモ/ Scala, Python/ 週3日〜】脳科学×AIプロダクトのサーバーサイド開発",
+      "reward": "〜580,000円 / 月",
+      "description": "脳科学×AIプロダクトのサーバーサイド開発。要件に基づく分析・モデル構築、分析結果の資料化・説明、プロダクト実装支援を担当。PythonとScalaを用いる。Kubernetes等の技術も利用。",
+      "remote": "フルリモート可（週3日〜）",
+      "score": 80,
+      "recommended": true,
+      "reason": "Pythonを含むAIプロダクト開発でリモート可、医療・脳科学領域の社会的意義もあり、AI/サーバーサイド両面での経験構築に向いている。"
+    }
+  ]
 }
