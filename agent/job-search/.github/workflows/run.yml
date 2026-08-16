@@ -19,7 +19,15 @@ jobs:
       - name: Install dependencies
         run: pip install -r agent/job-search/requirements.txt
 
-　　　　- name: Run Job Search AI
-　　　　　env:
-            OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-　　　　　run: python agent/job-search/agent.py
+      - name: Run Job Search AI
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python agent/job-search/agent.py
+
+      - name: Save jobs.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add jobs.json
+          git diff --cached --quiet || git commit -m "Update job search results"
+          git push
