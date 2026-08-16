@@ -1,61 +1,82 @@
-from openai import OpenAI
 import os
 import json
+import requests
+from bs4 import BeautifulSoup
+from openai import OpenAI
 
-client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+URL = "https://tech-agent.lancers.jp/project?q_text=Python"
 
-jobs = [
-    {
-        "title": "Python Web開発",
-        "description": "PythonとFastAPIを使ったWebサービス開発。リモート可能。",
-        "reward": "月60万円〜80万円"
-    },
-    {
-        "title": "AI業務自動化開発",
-        "description": "生成AIとPythonを使った業務自動化ツールの開発。",
-        "reward": "月50万円〜80万円"
-    },
-    {
-        "title": "Webサイト更新作業",
-        "description": "既存Webサイトの更新と簡単なHTML修正。",
-        "reward": "月25万円〜35万円"
-    }
-]
+client = OpenAI(
+    api_key=os.environ["OPENAI_API_KEY"]
+)
 
+headers = {
+    "User-Agent": "Mozilla/5.0"
+}
+
+response = requests.get(
+    URL,
+    headers=headers,
+    timeout=30
+)
+
+response.raise_for_status()
+
+soup = BeautifulSoup(response.text, "html.parser")
+
+text = soup.get_text("\n", strip=True)
+
+# ページ全体から案件らしい情報をAIに渡す
 prompt = f"""
-あなたは案件選別AIです。
+あなたは求人・案件検索AIです。
 
-目的：
-Python・AI・Web開発の仕事を見つけること。
+以下はランサーズ テックエージェントの
+Python案件検索ページから取得した公開情報です。
 
-以下の案件を100点満点で評価してください。
+この中からPython・AI・Web開発に関係する案件を抽出してください。
 
-評価基準：
-- Python / AI / Web開発との関連性
-- 報酬
-- リモート可能性
-- 作業内容の明確さ
-- AIによる自動化・開発との相性
+各案件について以下をJSONで返してください。
 
-80点以上を「おすすめ案件」としてください。
+- title
+- reward
+- description
+- remote
+- score
+- recommended
+- reason
 
-結果はJSON形式で返してください。
+scoreは0〜100。
+80点以上ならrecommended=true。
 
-案件：
-{json.dumps(jobs, ensure_ascii=False)}
+ページ情報:
+{text[:30000]}
 """
 
-response = client.responses.create(
+result = client.responses.create(
     model="gpt-5-mini",
     input=prompt
 )
 
-result = {
-    "ai_result": response.output_text
+ai_result = result.output_text
+
+# JSONとして保存
+data = {
+    "source": URL,
+    "ai_result": ai_result
 }
 
-with open("jobs.json", "w", encoding="utf-8") as f:
-    json.dump(result, f, ensure_ascii=False, indent=2)
+with open(
+    "jobs.json",
+    "w",
+    encoding="utf-8"
+) as f:
+    json.dump(
+        data,
+        f,
+        ensure_ascii=False,
+        indent=2
+    )
 
-print(response.output_text)
-print("案件選別完了")
+print("実際の公開案件を取得しました")
+print(ai_result)
+print("jobs.json を作成しました")
