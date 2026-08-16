@@ -64,15 +64,15 @@ def fetch_jobs():
 
 
 # =========================================================
-# AI解析
+# AIで求人を分析
 # =========================================================
 
 def analyze_jobs(page_text):
 
     print("AIで案件を分析しています...")
 
-    prompt = f"""
-あなたは「AIだけで仕事を進めたい人」のための求人選別AIです。
+    prompt = """
+あなたは「AIを最大限活用して仕事を進めたい人」のための求人選別AIです。
 
 以下の求人情報から、
 Python / AI / Web開発に関係する案件を抽出してください。
@@ -86,38 +86,38 @@ Python / AI / Web開発に関係する案件を抽出してください。
 5. リモートを優先
 6. フルリモートを最優先
 7. 常駐案件は順位を下げる
-8. AIだけで作業を進めやすい案件を優先
+8. AIを使って作業を進めやすい案件を優先
 9. 電話対応・対面営業・現地作業が多い案件は順位を下げる
-10. 同じ案件を重複させない
+10. 同じ案件は重複させない
 
 【AI評価】
 
-0〜100点で評価。
+0〜100点で評価してください。
 
 以下を特に評価してください。
 
-- OpenAI
-- GPT
-- Gemini
-- RAG
-- LangChain
-- LlamaIndex
-- Hugging Face
-- PyTorch
-- TensorFlow
-- Python
-- FastAPI
-- Django
-- AWS
-- API連携
-- AI自動化
-- Web開発
-- データ処理
-- テスト自動化
+OpenAI
+GPT
+Gemini
+RAG
+LangChain
+LlamaIndex
+Hugging Face
+PyTorch
+TensorFlow
+Python
+FastAPI
+Django
+AWS
+API連携
+AI自動化
+Web開発
+データ処理
+テスト自動化
 
 【自動化スコア】
 
-以下を総合して0〜100点。
+以下を総合して0〜100点で評価してください。
 
 - AIでコード作成しやすい
 - AIで文章・資料作成しやすい
@@ -135,6 +135,7 @@ Python / AI / Web開発に関係する案件を抽出してください。
 フルリモート = 100
 完全リモート = 100
 リモート可 = 90
+リモートワーク = 90
 ハイブリッド = 80
 一部リモート = 70
 不明 = 40
@@ -151,36 +152,41 @@ AI適合度      25%
 
 【応募候補】
 
-AIだけで進めやすく、
-報酬50万円以上、
-AIスコア80以上、
-自動化スコア70以上
-の案件は応募候補にしてください。
+以下の条件を満たす案件は応募候補にしてください。
 
-応募候補には、
+- 月額50万円以上
+- AIスコア80以上
+- 自動化スコア70以上
+- AI中心で作業しやすい
+- リモートまたはオンラインで進めやすい
 
-- recommended
-- priority
-- reason
-- application_message
-- questions
+応募候補には以下を作ってください。
 
-を作ってください。
+recommended
+priority
+reason
+application_message
+questions
 
-ただし、
+応募メッセージは、
+実際の応募前に人間が確認できる下書きとして作成してください。
+
+勝手に応募したり、応募を送信したりしないでください。
+
+また、
 「AIだけで完全に仕事ができる」と断定しないでください。
 
 人間による確認、設計、顧客との連絡、契約、
-品質確認などが必要になる可能性も明記してください。
+品質確認などが必要になる可能性も考慮してください。
 
 【重要】
 
 必ずJSONだけを返してください。
 
-Markdownは禁止。
-```jsonは禁止。
+Markdownは禁止です。
+コードブロックは禁止です。
 
-形式：
+JSON形式：
 
 {
   "jobs": [
@@ -223,9 +229,7 @@ Markdownは禁止。
 }
 
 求人情報：
-
-{page_text[:50000]}
-"""
+""" + page_text[:50000]
 
     response = client.responses.create(
         model="gpt-5-mini",
@@ -234,7 +238,7 @@ Markdownは禁止。
 
     result = response.output_text.strip()
 
-    # Markdownコードブロック除去
+    # Markdownコードブロックが返った場合
     if result.startswith("```"):
         result = re.sub(
             r"^```(?:json)?\s*",
@@ -248,7 +252,18 @@ Markdownは禁止。
             result
         )
 
-    return json.loads(result)
+    try:
+        data = json.loads(result)
+    except json.JSONDecodeError as e:
+
+        print("AIのJSON解析に失敗しました。")
+        print(result[:3000])
+
+        raise RuntimeError(
+            f"AIが正しいJSONを返しませんでした: {e}"
+        )
+
+    return data
 
 
 # =========================================================
@@ -282,12 +297,15 @@ def filter_jobs(jobs):
         except Exception:
             automation_score = 0
 
+        # 月50万円未満
         if monthly_pay < MIN_MONTHLY_PAY:
             continue
 
+        # AIスコア80未満
         if ai_score < MIN_AI_SCORE:
             continue
 
+        # 自動化スコア70未満
         if automation_score < MIN_AUTOMATION_SCORE:
             continue
 
@@ -329,6 +347,9 @@ def calculate_remote_score(remote):
     if "常駐" in text:
         return 20
 
+    if "フル出社" in text:
+        return 20
+
     return 40
 
 
@@ -346,12 +367,13 @@ def rank_jobs(jobs):
 
         job["remote_score"] = remote_score
 
+        # 報酬スコア
         pay = job.get(
             "monthly_pay",
             0
         )
 
-        # 50万円～110万円を0～100点化
+        # 50万円〜110万円を0〜100点
         pay_score = min(
             100,
             max(
@@ -370,6 +392,11 @@ def rank_jobs(jobs):
             0
         )
 
+        # 自動化35%
+        # AI25%
+        # リモート25%
+        # 報酬15%
+
         ranking_score = (
             automation_score * 0.35
             + ai_score * 0.25
@@ -387,6 +414,7 @@ def rank_jobs(jobs):
             1
         )
 
+    # 高い順
     jobs.sort(
         key=lambda x: x.get(
             "ranking_score",
@@ -395,6 +423,7 @@ def rank_jobs(jobs):
         reverse=True
     )
 
+    # 順位
     for index, job in enumerate(
         jobs,
         start=1
@@ -415,11 +444,9 @@ def create_application_candidates(jobs):
     for job in jobs:
 
         application = job.get(
-            "application_candidate"
+            "application_candidate",
+            {}
         )
-
-        if not application:
-            continue
 
         if application.get(
             "recommended",
@@ -485,21 +512,27 @@ def save_jobs(jobs):
     print("================================")
     print("求人検索AI 完了")
     print("================================")
-    print(f"抽出件数: {len(jobs)}")
+
+    print(
+        f"抽出件数: {len(jobs)}"
+    )
+
     print(
         f"応募候補: {len(candidates)}"
     )
 
+    print("")
+
     for job in jobs:
 
         print(
-            f"{job['rank']}位 "
-            f"{job['title']} "
-            f"月{job['monthly_pay']:,}円 "
-            f"AI:{job['score']} "
-            f"自動化:{job['automation_score']} "
-            f"リモート:{job['remote_score']} "
-            f"総合:{job['ranking_score']}"
+            f"{job.get('rank', '-') }位 "
+            f"{job.get('title', '不明')} "
+            f"月{job.get('monthly_pay', 0):,}円 "
+            f"AI:{job.get('score', 0)} "
+            f"自動化:{job.get('automation_score', 0)} "
+            f"リモート:{job.get('remote_score', 0)} "
+            f"総合:{job.get('ranking_score', 0)}"
         )
 
     print("")
@@ -514,8 +547,11 @@ def send_slack_notification(jobs):
 
     if not SLACK_WEBHOOK_URL:
 
+        print("")
         print(
-            "SLACK_WEBHOOK_URL が設定されていないため、"
+            "SLACK_WEBHOOK_URL が設定されていません。"
+        )
+        print(
             "Slack通知をスキップします。"
         )
 
@@ -523,19 +559,18 @@ def send_slack_notification(jobs):
 
     if not jobs:
 
+        print("")
         print(
-            "条件を満たす案件がないため、"
+            "条件を満たす案件がありません。"
+        )
+        print(
             "Slack通知はありません。"
         )
 
         return
 
+    # 1位案件
     top_job = jobs[0]
-
-    application = top_job.get(
-        "application_candidate",
-        {}
-    )
 
     title = top_job.get(
         "title",
@@ -552,7 +587,7 @@ def send_slack_notification(jobs):
         "不明"
     )
 
-    score = top_job.get(
+    ai_score = top_job.get(
         "score",
         0
     )
@@ -567,6 +602,11 @@ def send_slack_notification(jobs):
         0
     )
 
+    application = top_job.get(
+        "application_candidate",
+        {}
+    )
+
     priority = application.get(
         "priority",
         "応募候補"
@@ -576,23 +616,31 @@ def send_slack_notification(jobs):
         "reason",
         top_job.get(
             "reason",
-            ""
+            "AIによる選定"
         )
     )
 
     message = (
-        "🚀 *AI求人検索AI：最優先案件を発見！*\n\n"
-        f"🏆 *1位：{title}*\n"
+        "🚀 AI求人検索AI\n"
+        "\n"
+        "🏆 最優先案件を発見しました\n"
+        "\n"
+        f"【1位】{title}\n"
+        "\n"
         f"💰 報酬：{reward}\n"
         f"🏠 リモート：{remote}\n"
-        f"🤖 AIスコア：{score}/100\n"
-        f"⚙️ 自動化スコア：{automation_score}/100\n"
+        f"🤖 AIスコア：{ai_score}/100\n"
+        f"⚙️ 自動化：{automation_score}/100\n"
         f"📊 総合ランキング：{ranking_score}\n"
-        f"⭐ 優先度：{priority}\n\n"
-        f"💡 *選定理由*\n{reason}\n\n"
-        f"🔗 案件検索元：{SOURCE_URL}\n\n"
-        "※応募前に仕事内容・契約条件・報酬・"
-        "リモート条件を必ず確認してください。"
+        f"⭐ 優先度：{priority}\n"
+        "\n"
+        "【選定理由】\n"
+        f"{reason}\n"
+        "\n"
+        f"🔗 {SOURCE_URL}\n"
+        "\n"
+        "※応募前に仕事内容・契約条件・"
+        "報酬・リモート条件を確認してください。"
     )
 
     payload = {
@@ -609,15 +657,17 @@ def send_slack_notification(jobs):
 
         response.raise_for_status()
 
+        print("")
         print(
-            "Slack通知を送信しました。"
+            "✅ Slack通知を送信しました。"
         )
 
     except Exception as e:
 
-        # Slackエラーで求人検索自体を失敗させない
+        # Slackエラーだけでは求人検索を失敗させない
+        print("")
         print(
-            f"Slack通知に失敗しました: {e}"
+            f"⚠️ Slack通知に失敗しました: {e}"
         )
 
 
@@ -627,14 +677,15 @@ def send_slack_notification(jobs):
 
 def main():
 
+    print("")
     print("================================")
     print("AI求人検索を開始")
     print("================================")
 
-    # 1. 求人取得
+    # 1. 求人ページ取得
     page_text = fetch_jobs()
 
-    # 2. AI解析
+    # 2. AI分析
     result = analyze_jobs(
         page_text
     )
@@ -662,7 +713,7 @@ def main():
         jobs
     )
 
-    # 5. JSON保存
+    # 5. jobs.json保存
     save_jobs(
         jobs
     )
@@ -677,6 +728,10 @@ def main():
     print("すべての処理が完了しました")
     print("================================")
 
+
+# =========================================================
+# 実行
+# =========================================================
 
 if __name__ == "__main__":
     main()
