@@ -1,5 +1,6 @@
 from openai import OpenAI
 import os
+import json
 
 client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
@@ -26,14 +27,14 @@ prompt = f"""
 
 以下の求人を評価してください。
 
-{jobs}
+{json.dumps(jobs, ensure_ascii=False)}
 
 それぞれについて、
 ・おすすめ度（0〜100）
 ・おすすめ理由
 ・注意点
 
-を日本語で簡潔に説明してください。
+を日本語で説明してください。
 """
 
 response = client.responses.create(
@@ -41,4 +42,13 @@ response = client.responses.create(
     input=prompt
 )
 
+result = {
+    "jobs": jobs,
+    "ai_result": response.output_text
+}
+
+with open("jobs.json", "w", encoding="utf-8") as f:
+    json.dump(result, f, ensure_ascii=False, indent=2)
+
 print(response.output_text)
+print("jobs.json を作成しました")
