@@ -19,7 +19,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install libraries
-        run: pip install -r requirements.txt
+        run: pip install -r agent/job-search/requirements.txt
 
       - name: Run Job Search AI
         run: python agent.py
