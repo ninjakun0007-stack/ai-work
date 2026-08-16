@@ -22,4 +22,4 @@ jobs:
         run: pip install -r agent/job-search/requirements.txt
 
       - name: Run Job Search AI
-        run: python agent.py
+        run: python agent/job-search/agent.py
