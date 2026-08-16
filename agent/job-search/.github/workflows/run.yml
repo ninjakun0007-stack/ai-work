@@ -2,11 +2,9 @@ name: Job Search AI
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 0 * * *"
 
 jobs:
-  run-agent:
+  job-search:
     runs-on: ubuntu-latest
 
     steps:
@@ -18,9 +16,8 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install libraries
+      - name: Install dependencies
         run: pip install -r agent/job-search/requirements.txt
-
 
       - name: Run Job Search AI
         run: python agent/job-search/agent.py
