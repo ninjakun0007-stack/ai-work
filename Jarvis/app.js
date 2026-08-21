@@ -6,22 +6,42 @@ const SpeechRecognition =
   window.SpeechRecognition || window.webkitSpeechRecognition;
 
 if (!SpeechRecognition) {
-  message.textContent = "音声入力に対応していません";
-  statusText.textContent = "ブラウザを確認してください";
+  message.textContent = "このSafariでは音声入力を利用できません";
+  statusText.textContent = "音声認識非対応";
+  talkButton.disabled = true;
 } else {
   const recognition = new SpeechRecognition();
 
   recognition.lang = "ja-JP";
   recognition.continuous = false;
   recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  let listening = false;
 
   talkButton.addEventListener("click", () => {
-    message.textContent = "お話しください";
-    statusText.textContent = "音声入力中...";
-    talkButton.textContent = "🔴 聞いています";
+    if (listening) return;
 
-    recognition.start();
+    try {
+      listening = true;
+
+      message.textContent = "お話しください";
+      statusText.textContent = "聞いています...";
+      talkButton.textContent = "🔴 聞いています";
+
+      recognition.start();
+    } catch (error) {
+      listening = false;
+      message.textContent = "音声入力を開始できませんでした";
+      statusText.textContent = error.message || "開始エラー";
+      talkButton.textContent = "🎙️ 話す";
+    }
   });
+
+  recognition.onstart = () => {
+    listening = true;
+    statusText.textContent = "聞いています...";
+  };
 
   recognition.onresult = (event) => {
     const text = event.results[0][0].transcript;
@@ -30,13 +50,20 @@ if (!SpeechRecognition) {
     statusText.textContent = "音声を受け取りました";
   };
 
-  recognition.onerror = () => {
-    message.textContent = "もう一度お話しください";
-    statusText.textContent = "音声入力エラー";
+  recognition.onerror = (event) => {
+    listening = false;
+
+    message.textContent = "音声入力エラー";
+    statusText.textContent = event.error || "unknown error";
     talkButton.textContent = "🎙️ 話す";
   };
 
   recognition.onend = () => {
+    listening = false;
     talkButton.textContent = "🎙️ 話す";
+
+    if (statusText.textContent === "聞いています...") {
+      statusText.textContent = "音声入力が終了しました";
+    }
   };
 }
