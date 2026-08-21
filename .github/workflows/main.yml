@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "jarvis/**"
+      - "Jarvis/**"
       - ".github/workflows/main.yml"
   workflow_dispatch:
 
@@ -32,7 +32,7 @@ jobs:
       - name: Upload JARVIS
         uses: actions/upload-pages-artifact@v3
         with:
-          path: "./jarvis"
+          path: "./Jarvis"
 
       - name: Deploy to GitHub Pages
         id: deployment
