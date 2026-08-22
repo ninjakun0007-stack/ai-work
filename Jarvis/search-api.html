@@ -41,25 +41,40 @@
       margin: 20px 0;
     }
 
-    #result {
+    #answer {
       max-width: 700px;
-      margin: 0 auto;
+
+      margin: 25px auto;
 
       padding: 20px;
 
       border: 1px solid #444;
       border-radius: 12px;
+
+      font-size: 19px;
+    }
+
+    #result {
+      max-width: 700px;
+
+      margin: 0 auto;
+
+      padding: 20px;
+
+      border: 1px solid #333;
+      border-radius: 12px;
     }
 
     #result article {
-      margin-bottom: 30px;
+      margin-bottom: 25px;
+
       padding-bottom: 20px;
 
       border-bottom: 1px solid #333;
     }
 
     #result h2 {
-      font-size: 22px;
+      font-size: 21px;
     }
 
     #result a {
@@ -76,6 +91,7 @@
       font-size: 17px;
 
       border: none;
+
       border-radius: 10px;
 
       cursor: pointer;
@@ -89,19 +105,6 @@
     #googleButton {
       background: #333;
       color: #fff;
-    }
-
-    #answer {
-      max-width: 700px;
-      margin: 25px auto;
-
-      padding: 20px;
-
-      border-radius: 12px;
-
-      border: 1px solid #444;
-
-      font-size: 19px;
     }
   </style>
 </head>
@@ -122,12 +125,12 @@
 
 
   <div id="answer">
-    JARVISが検索結果を確認しています...
+    JARVISが情報を確認しています...
   </div>
 
 
   <button id="speakButton">
-    🔊 JARVISに読み上げさせる
+    🔊 JARVISに答えを読み上げさせる
   </button>
 
 
@@ -144,7 +147,7 @@
   <script>
 
     // ========================================
-    // URLから検索ワードを取得
+    // URLから検索ワード取得
     // ========================================
 
     const params =
@@ -169,12 +172,12 @@
       document.getElementById("query");
 
 
-    const result =
-      document.getElementById("result");
-
-
     const answer =
       document.getElementById("answer");
+
+
+    const result =
+      document.getElementById("result");
 
 
     const speakButton =
@@ -185,7 +188,7 @@
       document.getElementById("googleButton");
 
 
-    // 検索結果を保存
+    // 読み上げ文章
 
     let speechText = "";
 
@@ -196,8 +199,77 @@
 
     queryElement.textContent =
       query
-        ? `「${query}」を検索`
+        ? `「${query}」を調べています`
         : "検索内容がありません";
+
+
+    // ========================================
+    // JARVIS用の短い回答を作る
+    // ========================================
+
+    function createJarvisAnswer(
+      searchQuery,
+      pages
+    ) {
+
+      if (!pages.length) {
+
+        return (
+          `「${searchQuery}」について、` +
+          `情報を見つけられませんでした。`
+        );
+      }
+
+
+      const first =
+        pages[0];
+
+
+      let text =
+        `「${searchQuery}」について検索しました。`;
+
+
+      if (first.title) {
+
+        text +=
+          `まず、${first.title}についてです。`;
+      }
+
+
+      if (first.extract) {
+
+        let summary =
+          first.extract.trim();
+
+
+        // 長すぎる文章を短くする
+
+        if (summary.length > 180) {
+
+          summary =
+            summary.substring(
+              0,
+              180
+            ) +
+            "。";
+        }
+
+
+        text +=
+          summary;
+      }
+
+
+      if (pages.length > 1) {
+
+        text +=
+          `関連する情報を` +
+          `${pages.length}件確認しました。`;
+      }
+
+
+      return text;
+    }
 
 
     // ========================================
@@ -211,14 +283,18 @@
         status.textContent =
           "検索エラー";
 
-        result.textContent =
-          "検索する内容がありません。";
 
         answer.textContent =
-          "検索ワードがありません。";
+          "検索する内容がありません。";
+
+
+        result.textContent =
+          "検索ワードを指定してください。";
+
 
         speakButton.disabled =
           true;
+
 
         return;
       }
@@ -271,19 +347,23 @@
             : [];
 
 
-        if (pages.length === 0) {
+        // ====================================
+        // 検索結果なし
+        // ====================================
+
+        if (!pages.length) {
 
           status.textContent =
             "検索結果なし";
 
 
-          result.innerHTML =
-            "情報が見つかりませんでした。<br>" +
-            "下のボタンからGoogleで検索できます。";
-
-
           answer.textContent =
-            "検索結果が見つかりませんでした。";
+            `「${query}」について、` +
+            `情報を見つけられませんでした。`;
+
+
+          result.innerHTML =
+            "検索結果がありませんでした。";
 
 
           speakButton.disabled =
@@ -294,23 +374,34 @@
         }
 
 
-        status.textContent =
-          `🔎 ${pages.length}件の情報を取得しました`;
+        // ====================================
+        // JARVIS回答
+        // ====================================
 
+        speechText =
+          createJarvisAnswer(
+            query,
+            pages
+          );
+
+
+        answer.textContent =
+          speechText;
+
+
+        status.textContent =
+          `🔎 ${pages.length}件を確認しました`;
+
+
+        // ====================================
+        // 検索結果表示
+        // ====================================
 
         result.innerHTML = "";
 
 
-        // ====================================
-        // JARVIS用文章を作成
-        // ====================================
-
-        speechText =
-          `「${query}」について検索しました。`;
-
-
         pages.forEach(
-          (page, index) => {
+          (page) => {
 
             const article =
               document.createElement(
@@ -371,7 +462,7 @@
 
 
               link.textContent =
-                "Wikipediaで詳しく見る";
+                "詳しく見る";
 
 
               article.appendChild(
@@ -383,56 +474,35 @@
             result.appendChild(
               article
             );
-
-
-            // 読み上げ用
-
-            if (page.extract) {
-
-              speechText +=
-                ` ${index + 1}件目。` +
-                `${page.title}。` +
-                `${page.extract}`;
-            }
           }
         );
 
 
-        // ====================================
-        // JARVIS表示
-        // ====================================
-
-        answer.textContent =
-          `「${query}」について、` +
-          `${pages.length}件の情報を取得しました。` +
-          `下のボタンを押すと読み上げます。`;
-        
-
       } catch (error) {
+
+        console.error(error);
+
 
         status.textContent =
           "検索エラー";
 
 
-        result.textContent =
-          "ネット検索に失敗しました。";
-
-
         answer.textContent =
+          "ネット検索中にエラーが発生しました。";
+
+
+        result.textContent =
           "検索結果を取得できませんでした。";
 
 
         speakButton.disabled =
           true;
-
-
-        console.error(error);
       }
     }
 
 
     // ========================================
-    // 読み上げ
+    // JARVIS回答を読み上げ
     // ========================================
 
     speakButton.addEventListener(
@@ -449,8 +519,8 @@
           !("speechSynthesis" in window)
         ) {
 
-          answer.textContent =
-            "このブラウザでは音声読み上げを利用できません。";
+          answer.textContent +=
+            " このブラウザでは音声読み上げを利用できません。";
 
           return;
         }
@@ -482,14 +552,14 @@
 
 
         status.textContent =
-          "🔊 JARVISが読み上げています";
+          "🔊 JARVISが回答しています";
 
 
         utterance.onend =
           () => {
 
             status.textContent =
-              "検索完了";
+              "回答完了";
           };
 
 
