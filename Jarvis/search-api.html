@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>J.A.R.V.I.S. Web Search</title>
+
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #000;
+      color: #fff;
+      padding: 25px 18px;
+      line-height: 1.7;
+    }
+
+    h1 {
+      text-align: center;
+      letter-spacing: 4px;
+    }
+
+    #status {
+      text-align: center;
+      margin: 20px 0;
+    }
+
+    #query {
+      font-size: 20px;
+      text-align: center;
+      margin: 20px 0;
+    }
+
+    #result {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 20px;
+      border: 1px solid #444;
+      border-radius: 12px;
+    }
+
+    #result h2 {
+      font-size: 22px;
+    }
+
+    #result a {
+      color: #8fd3ff;
+    }
+
+    button {
+      display: block;
+      margin: 20px auto;
+      padding: 14px 25px;
+      font-size: 17px;
+      border: none;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>J.A.R.V.I.S.</h1>
+
+  <div id="status">
+    検索しています...
+  </div>
+
+  <div id="query"></div>
+
+  <div id="result">
+    検索結果を取得しています...
+  </div>
+
+  <button id="googleButton">
+    🔎 Googleでも検索
+  </button>
+
+
+  <script>
+
+    const params =
+      new URLSearchParams(window.location.search);
+
+    const query =
+      params.get("q") || "";
+
+    const status =
+      document.getElementById("status");
+
+    const queryElement =
+      document.getElementById("query");
+
+    const result =
+      document.getElementById("result");
+
+    const googleButton =
+      document.getElementById("googleButton");
+
+
+    queryElement.textContent =
+      query
+        ? `「${query}」を検索`
+        : "検索内容がありません";
+
+
+    async function searchWeb() {
+
+      if (!query) {
+
+        status.textContent =
+          "検索エラー";
+
+        result.textContent =
+          "検索する内容がありません。";
+
+        return;
+      }
+
+
+      status.textContent =
+        "🌐 ネット検索中...";
+
+
+      try {
+
+        const url =
+          "https://ja.wikipedia.org/w/api.php" +
+          "?action=query" +
+          "&generator=search" +
+          "&gsrsearch=" +
+          encodeURIComponent(query) +
+          "&gsrnamespace=0" +
+          "&gsrlimit=5" +
+          "&prop=extracts|info" +
+          "&exintro=1" +
+          "&explaintext=1" +
+          "&inprop=url" +
+          "&format=json" +
+          "&origin=*";
+
+
+        const response =
+          await fetch(url);
+
+
+        if (!response.ok) {
+          throw new Error("検索に失敗しました");
+        }
+
+
+        const data =
+          await response.json();
+
+
+        const pages =
+          data.query && data.query.pages
+            ? Object.values(data.query.pages)
+            : [];
+
+
+        if (pages.length === 0) {
+
+          status.textContent =
+            "検索結果なし";
+
+          result.innerHTML =
+            "情報が見つかりませんでした。<br>" +
+            "下のボタンからGoogleで検索できます。";
+
+          return;
+        }
+
+
+        status.textContent =
+          `🔎 ${pages.length}件の情報を取得しました`;
+
+
+        result.innerHTML = "";
+
+
+        pages.forEach((page) => {
+
+          const article =
+            document.createElement("article");
+
+          const title =
+            document.createElement("h2");
+
+          title.textContent =
+            page.title || "情報";
+
+
+          const extract =
+            document.createElement("p");
+
+          extract.textContent =
+            page.extract ||
+            "概要を取得できませんでした。";
+
+
+          article.appendChild(title);
+          article.appendChild(extract);
+
+
+          if (page.fullurl) {
+
+            const link =
+              document.createElement("a");
+
+            link.href =
+              page.fullurl;
+
+            link.target =
+              "_blank";
+
+            link.rel =
+              "noopener";
+
+            link.textContent =
+              "Wikipediaで詳しく見る";
+
+            article.appendChild(link);
+          }
+
+
+          result.appendChild(article);
+        });
+
+
+      } catch (error) {
+
+        status.textContent =
+          "検索エラー";
+
+        result.textContent =
+          "ネット検索に失敗しました。";
+
+        console.error(error);
+      }
+    }
+
+
+    googleButton.addEventListener(
+      "click",
+      () => {
+
+        if (!query) return;
+
+        const googleURL =
+          "https://www.google.com/search?q=" +
+          encodeURIComponent(query);
+
+        window.location.href =
+          googleURL;
+      }
+    );
+
+
+    searchWeb();
+
+  </script>
+
+</body>
+</html>
