@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>JARVIS Search</title>
+  <title>J.A.R.V.I.S. Search</title>
 
   <style>
     body {
@@ -18,30 +18,27 @@
     h1 {
       font-size: 32px;
       letter-spacing: 4px;
+      margin-bottom: 10px;
     }
 
-    input {
-      width: 90%;
-      max-width: 500px;
-      padding: 15px;
-      font-size: 18px;
-      border-radius: 10px;
-      border: none;
+    .status {
       margin-top: 20px;
+      font-size: 18px;
+    }
+
+    .query {
+      margin-top: 25px;
+      font-size: 22px;
+      line-height: 1.6;
     }
 
     button {
-      margin-top: 15px;
+      margin-top: 25px;
       padding: 14px 30px;
       font-size: 18px;
-      border-radius: 10px;
       border: none;
-    }
-
-    #result {
-      margin-top: 30px;
-      font-size: 18px;
-      line-height: 1.7;
+      border-radius: 10px;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -50,66 +47,80 @@
 
   <h1>J.A.R.V.I.S.</h1>
 
-  <p>何を検索しますか？</p>
+  <div class="status" id="status">
+    検索準備中...
+  </div>
 
-  <input
-    id="searchText"
-    type="text"
-    placeholder="例：最新のAIニュース"
-  >
-
-  <br>
+  <div class="query" id="query">
+  </div>
 
   <button id="searchButton">
-    🔎 検索
+    🔎 Googleで検索
   </button>
 
-  <div id="result"></div>
 
   <script>
 
-    const searchText =
-      document.getElementById("searchText");
+    // URLから検索ワードを取得
+    const params =
+      new URLSearchParams(window.location.search);
+
+    const query =
+      params.get("q") || "";
+
+
+    const status =
+      document.getElementById("status");
+
+    const queryElement =
+      document.getElementById("query");
 
     const searchButton =
       document.getElementById("searchButton");
 
-    const result =
-      document.getElementById("result");
 
+    // 検索ワードを表示
+
+    if (query) {
+
+      queryElement.textContent =
+        `「${query}」を検索します。`;
+
+      status.textContent =
+        "検索準備完了";
+
+    } else {
+
+      queryElement.textContent =
+        "検索する内容がありません。";
+
+      status.textContent =
+        "検索エラー";
+
+      searchButton.style.display =
+        "none";
+    }
+
+
+    // Google検索
 
     searchButton.addEventListener("click", () => {
 
-      const query =
-        searchText.value.trim();
+      if (!query) return;
 
-      if (!query) {
-        result.textContent =
-          "検索する内容を入力してください。";
-        return;
-      }
-
-      result.innerHTML =
-        "🔎 検索しています...";
-
-      const url =
+      const googleURL =
         "https://www.google.com/search?q=" +
         encodeURIComponent(query);
 
-      window.open(url, "_blank");
-
-      result.innerHTML =
-        `「${query}」を検索しました。`;
+      window.location.href =
+        googleURL;
     });
 
 
-    searchText.addEventListener("keydown", (event) => {
-
-      if (event.key === "Enter") {
-        searchButton.click();
-      }
-
-    });
+    // 検索ページを開いたとき
+    // すぐGoogleへ移動するのではなく、
+    // iPhone Safariで確実に動かすため
+    // ボタンを押して検索する方式にする。
 
   </script>
 
