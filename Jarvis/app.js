@@ -25,7 +25,6 @@ if (!SpeechRecognition) {
     if (listening) return;
 
     try {
-
       listening = true;
 
       message.textContent = "お話しください";
@@ -57,7 +56,7 @@ if (!SpeechRecognition) {
     message.textContent = `「${text}」`;
 
     // =========================
-    // ネット検索
+    // インターネット検索
     // =========================
 
     if (
@@ -73,6 +72,7 @@ if (!SpeechRecognition) {
         .trim();
 
       if (!query) {
+
         message.textContent =
           "何を検索しましょうか？";
 
@@ -86,13 +86,15 @@ if (!SpeechRecognition) {
         `「${query}」を検索します。`;
 
       statusText.textContent =
-        "Google検索を開いています...";
+        "Google検索へ移動しています...";
 
       const url =
         "https://www.google.com/search?q=" +
         encodeURIComponent(query);
 
-      window.open(url, "_blank");
+      // iPhone Safari対策
+      // 新しいタブではなく現在のページを移動
+      window.location.href = url;
 
       return;
     }
@@ -258,9 +260,9 @@ function getJarvisReply(text) {
   }
 
 
-  // =========================
+  // ========================================
   // 簡単な計算
-  // =========================
+  // ========================================
 
   const calculation = text.match(
     /(-?\d+(?:\.\d+)?)\s*(たす|足す|\+|引く|ひく|マイナス|掛ける|かける|×|割る|わる|÷)\s*(-?\d+(?:\.\d+)?)/
