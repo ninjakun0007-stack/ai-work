@@ -25,6 +25,7 @@ if (!SpeechRecognition) {
     if (listening) return;
 
     try {
+
       listening = true;
 
       message.textContent = "お話しください";
@@ -55,54 +56,71 @@ if (!SpeechRecognition) {
 
     message.textContent = `「${text}」`;
 
-    // =========================
-    // インターネット検索
-    // =========================
+    // ========================================
+    // ネット検索
+    // ========================================
 
-    if (
-      text.startsWith("検索して") ||
-      text.startsWith("検索") ||
-      text.includes("調べて")
-    ) {
+    let query = "";
 
-      let query = text
-        .replace(/^検索して/, "")
-        .replace(/^検索/, "")
-        .replace(/調べて/g, "")
+    if (text.startsWith("検索して")) {
+
+      query = text
+        .replace("検索して", "")
         .trim();
 
-      if (!query) {
+    } else if (text.startsWith("検索")) {
 
-        message.textContent =
-          "何を検索しましょうか？";
+      query = text
+        .replace("検索", "")
+        .trim();
 
-        statusText.textContent =
-          "検索待機中";
+    } else if (text.includes("を検索")) {
 
-        return;
-      }
+      query = text
+        .split("を検索")[0]
+        .trim();
+
+    } else if (text.includes("検索します")) {
+
+      query = text
+        .replace("検索します", "")
+        .trim();
+
+    } else if (text.includes("調べて")) {
+
+      query = text
+        .replace("調べて", "")
+        .trim();
+    }
+
+
+    // 検索ワードが見つかった場合
+
+    if (query) {
 
       message.textContent =
-        `「${query}」を検索します。`;
+        `${query}を検索します`;
 
       statusText.textContent =
-        "Google検索へ移動しています...";
+        "検索ページを開いています...";
 
-      const url =
-        "https://www.google.com/search?q=" +
+
+      const searchPage =
+        "./search.html?q=" +
         encodeURIComponent(query);
 
-      // iPhone Safari対策
-      // 新しいタブではなく現在のページを移動
-      window.location.href = url;
+
+      // JARVISのページから検索ページへ移動
+
+      window.location.assign(searchPage);
 
       return;
     }
 
 
-    // =========================
+    // ========================================
     // 通常のJARVIS返答
-    // =========================
+    // ========================================
 
     statusText.textContent =
       "JARVISが考えています...";
@@ -157,8 +175,6 @@ function getJarvisReply(text) {
   const now = new Date();
 
 
-  // あいさつ
-
   if (
     text.includes("こんにちは") ||
     text.includes("こんばんは") ||
@@ -169,8 +185,6 @@ function getJarvisReply(text) {
   }
 
 
-  // 名前
-
   if (
     text.includes("名前") ||
     text.includes("誰")
@@ -179,8 +193,6 @@ function getJarvisReply(text) {
     return "私の名前はJ.A.R.V.I.S.です。";
   }
 
-
-  // 元気
 
   if (
     text.includes("元気") ||
@@ -192,8 +204,6 @@ function getJarvisReply(text) {
   }
 
 
-  // 時刻
-
   if (
     text.includes("何時") ||
     text.includes("時間") ||
@@ -204,8 +214,6 @@ function getJarvisReply(text) {
   }
 
 
-  // 日付
-
   if (
     text.includes("何日") ||
     text.includes("今日の日付") ||
@@ -215,8 +223,6 @@ function getJarvisReply(text) {
     return `今日は${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日です。`;
   }
 
-
-  // 曜日
 
   if (
     text.includes("何曜日") ||
@@ -237,8 +243,6 @@ function getJarvisReply(text) {
   }
 
 
-  // ありがとう
-
   if (
     text.includes("ありがとう") ||
     text.includes("感謝")
@@ -248,15 +252,13 @@ function getJarvisReply(text) {
   }
 
 
-  // 何ができる
-
   if (
     text.includes("何ができる") ||
     text.includes("何ができますか") ||
     text.includes("できること")
   ) {
 
-    return "時刻、日付、曜日、簡単な計算、そしてインターネット検索に対応しています。";
+    return "時刻、日付、曜日、簡単な計算、インターネット検索に対応しています。";
   }
 
 
