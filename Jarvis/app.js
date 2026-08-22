@@ -7,19 +7,12 @@ const SpeechRecognition =
   window.webkitSpeechRecognition;
 
 if (!SpeechRecognition) {
-
-  message.textContent =
-    "このSafariでは音声入力を利用できません";
-
-  statusText.textContent =
-    "音声認識非対応";
-
+  message.textContent = "このSafariでは音声入力を利用できません";
+  statusText.textContent = "音声認識非対応";
   talkButton.disabled = true;
-
 } else {
 
-  const recognition =
-    new SpeechRecognition();
+  const recognition = new SpeechRecognition();
 
   recognition.lang = "ja-JP";
   recognition.continuous = false;
@@ -27,11 +20,6 @@ if (!SpeechRecognition) {
   recognition.maxAlternatives = 1;
 
   let listening = false;
-
-
-  // ========================================
-  // 話すボタン
-  // ========================================
 
   talkButton.addEventListener("click", () => {
 
@@ -41,14 +29,9 @@ if (!SpeechRecognition) {
 
       listening = true;
 
-      message.textContent =
-        "お話しください";
-
-      statusText.textContent =
-        "聞いています...";
-
-      talkButton.textContent =
-        "🔴 聞いています";
+      message.textContent = "お話しください";
+      statusText.textContent = "聞いています...";
+      talkButton.textContent = "🔴 聞いています";
 
       recognition.start();
 
@@ -62,95 +45,89 @@ if (!SpeechRecognition) {
       statusText.textContent =
         error.message || "開始エラー";
 
-      talkButton.textContent =
-        "🎙️ 話す";
+      talkButton.textContent = "🎙️ 話す";
     }
   });
 
-
-  // ========================================
-  // 音声認識結果
-  // ========================================
 
   recognition.onresult = (event) => {
 
     const text =
       event.results[0][0].transcript.trim();
 
-    message.textContent =
-      `「${text}」`;
-
-
-    // ======================================
-    // ネット検索判定
-    // ======================================
+    message.textContent = `「${text}」`;
 
     let query = "";
 
 
+    // ========================================
+    // 検索ワードを取り出す
+    // ========================================
+
     if (text.startsWith("検索して")) {
 
-      query =
-        text
-          .replace("検索して", "")
-          .trim();
+      query = text
+        .replace("検索して", "")
+        .trim();
 
     } else if (text.startsWith("検索")) {
 
-      query =
-        text
-          .replace("検索", "")
-          .trim();
-
-    } else if (text.includes("調べて")) {
-
-      query =
-        text
-          .replace("調べて", "")
-          .trim();
+      query = text
+        .replace("検索", "")
+        .trim();
 
     } else if (text.includes("を検索")) {
 
-      query =
-        text
-          .split("を検索")[0]
-          .trim();
+      query = text
+        .split("を検索")[0]
+        .trim();
+
+    } else if (text.includes("調べて")) {
+
+      query = text
+        .replace("調べて", "")
+        .trim();
     }
 
 
-    // ======================================
-    // 検索する
-    // ======================================
+    // ========================================
+    // 検索
+    // ========================================
 
     if (query) {
 
-      message.textContent =
-        `「${query}」を検索します。`;
-
-      statusText.textContent =
-        "🌐 ネット検索を開始します...";
-
-
-      const searchPage =
+      const searchURL =
         "./search-api.html?q=" +
         encodeURIComponent(query);
 
 
-      // 検索ページへ移動
+      message.innerHTML =
+        `「${query}」を検索します。<br><br>` +
+        `<a href="${searchURL}" ` +
+        `style="display:inline-block;` +
+        `padding:15px 25px;` +
+        `background:#ffffff;` +
+        `color:#000000;` +
+        `border-radius:10px;` +
+        `text-decoration:none;` +
+        `font-size:18px;">` +
+        `🔎 検索結果を開く` +
+        `</a>`;
 
-      window.location.assign(searchPage);
+
+      statusText.textContent =
+        "検索準備完了";
 
       return;
     }
 
 
-    // ======================================
+    // ========================================
     // 通常のJARVIS回答
-    // ======================================
+    // ========================================
 
     statusText.textContent =
       "JARVISが考えています...";
-
 
     const reply =
       getJarvisReply(text);
@@ -158,8 +135,7 @@ if (!SpeechRecognition) {
 
     setTimeout(() => {
 
-      message.textContent =
-        reply;
+      message.textContent = reply;
 
       statusText.textContent =
         "JARVIS応答";
@@ -170,10 +146,6 @@ if (!SpeechRecognition) {
   };
 
 
-  // ========================================
-  // 音声認識エラー
-  // ========================================
-
   recognition.onerror = (event) => {
 
     listening = false;
@@ -182,17 +154,12 @@ if (!SpeechRecognition) {
       "もう一度お話しください";
 
     statusText.textContent =
-      event.error ||
-      "音声入力エラー";
+      event.error || "音声入力エラー";
 
     talkButton.textContent =
       "🎙️ 話す";
   };
 
-
-  // ========================================
-  // 音声認識終了
-  // ========================================
 
   recognition.onend = () => {
 
@@ -210,11 +177,8 @@ if (!SpeechRecognition) {
 
 function getJarvisReply(text) {
 
-  const now =
-    new Date();
+  const now = new Date();
 
-
-  // あいさつ
 
   if (
     text.includes("こんにちは") ||
@@ -222,27 +186,18 @@ function getJarvisReply(text) {
     text.includes("おはよう")
   ) {
 
-    return (
-      "こんにちは。JARVISです。" +
-      "今日は何をお手伝いしましょうか？"
-    );
+    return "こんにちは。JARVISです。今日は何をお手伝いしましょうか？";
   }
 
-
-  // 名前
 
   if (
     text.includes("名前") ||
     text.includes("誰")
   ) {
 
-    return (
-      "私の名前はJ.A.R.V.I.S.です。"
-    );
+    return "私の名前はJ.A.R.V.I.S.です。";
   }
 
-
-  // 元気
 
   if (
     text.includes("元気") ||
@@ -250,13 +205,9 @@ function getJarvisReply(text) {
     text.includes("状態")
   ) {
 
-    return (
-      "はい。システムは正常に稼働しています。"
-    );
+    return "はい。システムは正常に稼働しています。";
   }
 
-
-  // 時刻
 
   if (
     text.includes("何時") ||
@@ -264,15 +215,9 @@ function getJarvisReply(text) {
     text.includes("現在時刻")
   ) {
 
-    return (
-      `現在の時刻は、` +
-      `${now.getHours()}時` +
-      `${now.getMinutes()}分です。`
-    );
+    return `現在の時刻は、${now.getHours()}時${now.getMinutes()}分です。`;
   }
 
-
-  // 日付
 
   if (
     text.includes("何日") ||
@@ -280,16 +225,9 @@ function getJarvisReply(text) {
     text.includes("今日は何日")
   ) {
 
-    return (
-      `今日は` +
-      `${now.getFullYear()}年` +
-      `${now.getMonth() + 1}月` +
-      `${now.getDate()}日です。`
-    );
+    return `今日は${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日です。`;
   }
 
-
-  // 曜日
 
   if (
     text.includes("何曜日") ||
@@ -306,27 +244,18 @@ function getJarvisReply(text) {
       "土曜日"
     ];
 
-    return (
-      `今日は${days[now.getDay()]}です。`
-    );
+    return `今日は${days[now.getDay()]}です。`;
   }
 
-
-  // ありがとう
 
   if (
     text.includes("ありがとう") ||
     text.includes("感謝")
   ) {
 
-    return (
-      "どういたしまして。" +
-      "いつでもお呼びください。"
-    );
+    return "どういたしまして。いつでもお呼びください。";
   }
 
-
-  // できること
 
   if (
     text.includes("何ができる") ||
@@ -334,10 +263,7 @@ function getJarvisReply(text) {
     text.includes("できること")
   ) {
 
-    return (
-      "私は、時刻、日付、曜日、" +
-      "簡単な計算、そしてインターネット検索に対応しています。"
-    );
+    return "時刻、日付、曜日、簡単な計算、インターネット検索に対応しています。";
   }
 
 
@@ -353,14 +279,9 @@ function getJarvisReply(text) {
 
   if (calculation) {
 
-    const a =
-      Number(calculation[1]);
-
-    const operator =
-      calculation[2];
-
-    const b =
-      Number(calculation[3]);
+    const a = Number(calculation[1]);
+    const operator = calculation[2];
+    const b = Number(calculation[3]);
 
 
     if (
@@ -369,9 +290,7 @@ function getJarvisReply(text) {
       operator === "+"
     ) {
 
-      return (
-        `${a}足す${b}は${a + b}です。`
-      );
+      return `${a}足す${b}は${a + b}です。`;
     }
 
 
@@ -381,9 +300,7 @@ function getJarvisReply(text) {
       operator === "マイナス"
     ) {
 
-      return (
-        `${a}引く${b}は${a - b}です。`
-      );
+      return `${a}引く${b}は${a - b}です。`;
     }
 
 
@@ -393,9 +310,7 @@ function getJarvisReply(text) {
       operator === "×"
     ) {
 
-      return (
-        `${a}掛ける${b}は${a * b}です。`
-      );
+      return `${a}掛ける${b}は${a * b}です。`;
     }
 
 
@@ -406,28 +321,15 @@ function getJarvisReply(text) {
     ) {
 
       if (b === 0) {
-
-        return (
-          "0では割ることができません。"
-        );
+        return "0では割ることができません。";
       }
 
-      return (
-        `${a}割る${b}は${a / b}です。`
-      );
+      return `${a}割る${b}は${a / b}です。`;
     }
   }
 
 
-  // ========================================
-  // 未対応
-  // ========================================
-
-  return (
-    `「${text}」ですね。` +
-    `検索したい場合は、` +
-    `「検索して ○○」と言ってください。`
-  );
+  return `「${text}」ですね。検索したい場合は「検索して」と言ってください。`;
 }
 
 
@@ -437,9 +339,7 @@ function getJarvisReply(text) {
 
 function speak(text) {
 
-  if (
-    !("speechSynthesis" in window)
-  ) {
+  if (!("speechSynthesis" in window)) {
 
     statusText.textContent =
       "音声読み上げ非対応";
@@ -454,18 +354,10 @@ function speak(text) {
   const utterance =
     new SpeechSynthesisUtterance(text);
 
-
-  utterance.lang =
-    "ja-JP";
-
-  utterance.rate =
-    0.9;
-
-  utterance.pitch =
-    1.0;
-
-  utterance.volume =
-    1.0;
+  utterance.lang = "ja-JP";
+  utterance.rate = 0.9;
+  utterance.pitch = 1.0;
+  utterance.volume = 1.0;
 
 
   utterance.onstart = () => {
@@ -489,7 +381,5 @@ function speak(text) {
   };
 
 
-  window.speechSynthesis.speak(
-    utterance
-  );
+  window.speechSynthesis.speak(utterance);
 }
