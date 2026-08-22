@@ -15,7 +15,6 @@ if (!SpeechRecognition) {
   recognition.lang = "ja-JP";
   recognition.continuous = false;
   recognition.interimResults = false;
-  recognition.maxAlternatives = 1;
 
   let listening = false;
 
@@ -41,16 +40,17 @@ if (!SpeechRecognition) {
     const text = event.results[0][0].transcript;
 
     message.textContent = `「${text}」`;
-    statusText.textContent = "考えています...";
+    statusText.textContent = "JARVISが考えています...";
 
     const reply = getJarvisReply(text);
 
-    setTimeout(() => {
-      message.textContent = reply;
-      statusText.textContent = "JARVIS応答中";
+    message.textContent = reply;
+    statusText.textContent = "JARVISが話します";
 
+    // iPhone Safari対策
+    setTimeout(() => {
       speak(reply);
-    }, 500);
+    }, 100);
   };
 
   recognition.onerror = (event) => {
@@ -68,10 +68,7 @@ if (!SpeechRecognition) {
 }
 
 
-// =========================
-// JARVIS 無料版の返答
-// =========================
-
+// JARVISの無料版返答
 function getJarvisReply(text) {
   if (text.includes("こんにちは")) {
     return "こんにちは。JARVISです。今日は何をお手伝いしましょうか？";
@@ -98,12 +95,9 @@ function getJarvisReply(text) {
 }
 
 
-// =========================
-// JARVIS 音声読み上げ
-// =========================
-
+// 音声読み上げ
 function speak(text) {
-  if (!("speechSynthesis" in window)) {
+  if (!window.speechSynthesis) {
     statusText.textContent = "音声読み上げ非対応";
     return;
   }
@@ -113,16 +107,21 @@ function speak(text) {
   const utterance = new SpeechSynthesisUtterance(text);
 
   utterance.lang = "ja-JP";
-  utterance.rate = 0.95;
+  utterance.rate = 0.9;
   utterance.pitch = 1.0;
   utterance.volume = 1.0;
 
   utterance.onstart = () => {
-    statusText.textContent = "JARVISが話しています";
+    statusText.textContent = "🔊 JARVISが話しています";
   };
 
   utterance.onend = () => {
     statusText.textContent = "待機中";
+  };
+
+  utterance.onerror = (event) => {
+    statusText.textContent = "読み上げエラー";
+    console.log("Speech error:", event.error);
   };
 
   window.speechSynthesis.speak(utterance);
