@@ -2,16 +2,26 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
 
   <title>J.A.R.V.I.S. Web Search</title>
 
   <style>
     body {
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        sans-serif;
+
       background: #000;
       color: #fff;
+
       padding: 25px 18px;
+
       line-height: 1.7;
     }
 
@@ -34,9 +44,18 @@
     #result {
       max-width: 700px;
       margin: 0 auto;
+
       padding: 20px;
+
       border: 1px solid #444;
       border-radius: 12px;
+    }
+
+    #result article {
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+
+      border-bottom: 1px solid #333;
     }
 
     #result h2 {
@@ -49,28 +68,73 @@
 
     button {
       display: block;
+
       margin: 20px auto;
+
       padding: 14px 25px;
+
       font-size: 17px;
+
       border: none;
       border-radius: 10px;
+
+      cursor: pointer;
+    }
+
+    #speakButton {
+      background: #fff;
+      color: #000;
+    }
+
+    #googleButton {
+      background: #333;
+      color: #fff;
+    }
+
+    #answer {
+      max-width: 700px;
+      margin: 25px auto;
+
+      padding: 20px;
+
+      border-radius: 12px;
+
+      border: 1px solid #444;
+
+      font-size: 19px;
     }
   </style>
 </head>
 
 <body>
 
-  <h1>J.A.R.V.I.S.</h1>
+  <h1>
+    J.A.R.V.I.S.
+  </h1>
+
 
   <div id="status">
     検索しています...
   </div>
 
+
   <div id="query"></div>
+
+
+  <div id="answer">
+    JARVISが検索結果を確認しています...
+  </div>
+
+
+  <button id="speakButton">
+    🔊 JARVISに読み上げさせる
+  </button>
+
 
   <div id="result">
     検索結果を取得しています...
   </div>
+
 
   <button id="googleButton">
     🔎 Googleでも検索
@@ -79,30 +143,66 @@
 
   <script>
 
+    // ========================================
+    // URLから検索ワードを取得
+    // ========================================
+
     const params =
-      new URLSearchParams(window.location.search);
+      new URLSearchParams(
+        window.location.search
+      );
+
 
     const query =
       params.get("q") || "";
 
+
+    // ========================================
+    // 画面要素
+    // ========================================
+
     const status =
       document.getElementById("status");
+
 
     const queryElement =
       document.getElementById("query");
 
+
     const result =
       document.getElementById("result");
+
+
+    const answer =
+      document.getElementById("answer");
+
+
+    const speakButton =
+      document.getElementById("speakButton");
+
 
     const googleButton =
       document.getElementById("googleButton");
 
+
+    // 検索結果を保存
+
+    let speechText = "";
+
+
+    // ========================================
+    // 検索ワード表示
+    // ========================================
 
     queryElement.textContent =
       query
         ? `「${query}」を検索`
         : "検索内容がありません";
 
+
+    // ========================================
+    // ネット検索
+    // ========================================
 
     async function searchWeb() {
 
@@ -113,6 +213,12 @@
 
         result.textContent =
           "検索する内容がありません。";
+
+        answer.textContent =
+          "検索ワードがありません。";
+
+        speakButton.disabled =
+          true;
 
         return;
       }
@@ -145,7 +251,10 @@
 
 
         if (!response.ok) {
-          throw new Error("検索に失敗しました");
+
+          throw new Error(
+            "検索に失敗しました"
+          );
         }
 
 
@@ -154,8 +263,11 @@
 
 
         const pages =
-          data.query && data.query.pages
-            ? Object.values(data.query.pages)
+          data.query &&
+          data.query.pages
+            ? Object.values(
+                data.query.pages
+              )
             : [];
 
 
@@ -164,9 +276,19 @@
           status.textContent =
             "検索結果なし";
 
+
           result.innerHTML =
             "情報が見つかりませんでした。<br>" +
             "下のボタンからGoogleで検索できます。";
+
+
+          answer.textContent =
+            "検索結果が見つかりませんでした。";
+
+
+          speakButton.disabled =
+            true;
+
 
           return;
         }
@@ -179,83 +301,241 @@
         result.innerHTML = "";
 
 
-        pages.forEach((page) => {
+        // ====================================
+        // JARVIS用文章を作成
+        // ====================================
 
-          const article =
-            document.createElement("article");
-
-          const title =
-            document.createElement("h2");
-
-          title.textContent =
-            page.title || "情報";
+        speechText =
+          `「${query}」について検索しました。`;
 
 
-          const extract =
-            document.createElement("p");
+        pages.forEach(
+          (page, index) => {
 
-          extract.textContent =
-            page.extract ||
-            "概要を取得できませんでした。";
-
-
-          article.appendChild(title);
-          article.appendChild(extract);
+            const article =
+              document.createElement(
+                "article"
+              );
 
 
-          if (page.fullurl) {
+            const title =
+              document.createElement(
+                "h2"
+              );
 
-            const link =
-              document.createElement("a");
 
-            link.href =
-              page.fullurl;
+            title.textContent =
+              page.title ||
+              "情報";
 
-            link.target =
-              "_blank";
 
-            link.rel =
-              "noopener";
+            const extract =
+              document.createElement(
+                "p"
+              );
 
-            link.textContent =
-              "Wikipediaで詳しく見る";
 
-            article.appendChild(link);
+            extract.textContent =
+              page.extract ||
+              "概要を取得できませんでした。";
+
+
+            article.appendChild(
+              title
+            );
+
+
+            article.appendChild(
+              extract
+            );
+
+
+            if (page.fullurl) {
+
+              const link =
+                document.createElement(
+                  "a"
+                );
+
+
+              link.href =
+                page.fullurl;
+
+
+              link.target =
+                "_blank";
+
+
+              link.rel =
+                "noopener";
+
+
+              link.textContent =
+                "Wikipediaで詳しく見る";
+
+
+              article.appendChild(
+                link
+              );
+            }
+
+
+            result.appendChild(
+              article
+            );
+
+
+            // 読み上げ用
+
+            if (page.extract) {
+
+              speechText +=
+                ` ${index + 1}件目。` +
+                `${page.title}。` +
+                `${page.extract}`;
+            }
           }
+        );
 
 
-          result.appendChild(article);
-        });
+        // ====================================
+        // JARVIS表示
+        // ====================================
 
+        answer.textContent =
+          `「${query}」について、` +
+          `${pages.length}件の情報を取得しました。` +
+          `下のボタンを押すと読み上げます。`;
+        
 
       } catch (error) {
 
         status.textContent =
           "検索エラー";
 
+
         result.textContent =
           "ネット検索に失敗しました。";
+
+
+        answer.textContent =
+          "検索結果を取得できませんでした。";
+
+
+        speakButton.disabled =
+          true;
+
 
         console.error(error);
       }
     }
 
 
+    // ========================================
+    // 読み上げ
+    // ========================================
+
+    speakButton.addEventListener(
+      "click",
+      () => {
+
+        if (!speechText) {
+
+          return;
+        }
+
+
+        if (
+          !("speechSynthesis" in window)
+        ) {
+
+          answer.textContent =
+            "このブラウザでは音声読み上げを利用できません。";
+
+          return;
+        }
+
+
+        window.speechSynthesis.cancel();
+
+
+        const utterance =
+          new SpeechSynthesisUtterance(
+            speechText
+          );
+
+
+        utterance.lang =
+          "ja-JP";
+
+
+        utterance.rate =
+          0.9;
+
+
+        utterance.pitch =
+          1.0;
+
+
+        utterance.volume =
+          1.0;
+
+
+        status.textContent =
+          "🔊 JARVISが読み上げています";
+
+
+        utterance.onend =
+          () => {
+
+            status.textContent =
+              "検索完了";
+          };
+
+
+        utterance.onerror =
+          () => {
+
+            status.textContent =
+              "読み上げエラー";
+          };
+
+
+        window.speechSynthesis.speak(
+          utterance
+        );
+      }
+    );
+
+
+    // ========================================
+    // Google検索
+    // ========================================
+
     googleButton.addEventListener(
       "click",
       () => {
 
-        if (!query) return;
+        if (!query) {
+
+          return;
+        }
+
 
         const googleURL =
           "https://www.google.com/search?q=" +
           encodeURIComponent(query);
+
 
         window.location.href =
           googleURL;
       }
     );
 
+
+    // ========================================
+    // 検索開始
+    // ========================================
 
     searchWeb();
 
