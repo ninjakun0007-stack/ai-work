@@ -43,9 +43,7 @@
 
     #answer {
       max-width: 700px;
-
       margin: 25px auto;
-
       padding: 20px;
 
       border: 1px solid #444;
@@ -56,9 +54,7 @@
 
     #result {
       max-width: 700px;
-
       margin: 0 auto;
-
       padding: 20px;
 
       border: 1px solid #333;
@@ -67,7 +63,6 @@
 
     #result article {
       margin-bottom: 25px;
-
       padding-bottom: 20px;
 
       border-bottom: 1px solid #333;
@@ -85,13 +80,11 @@
       display: block;
 
       margin: 20px auto;
-
       padding: 14px 25px;
 
       font-size: 17px;
 
       border: none;
-
       border-radius: 10px;
 
       cursor: pointer;
@@ -155,7 +148,6 @@
         window.location.search
       );
 
-
     const query =
       params.get("q") || "";
 
@@ -167,28 +159,25 @@
     const status =
       document.getElementById("status");
 
-
     const queryElement =
       document.getElementById("query");
-
 
     const answer =
       document.getElementById("answer");
 
-
     const result =
       document.getElementById("result");
 
-
     const speakButton =
       document.getElementById("speakButton");
-
 
     const googleButton =
       document.getElementById("googleButton");
 
 
+    // ========================================
     // 読み上げ文章
+    // ========================================
 
     let speechText = "";
 
@@ -204,7 +193,7 @@
 
 
     // ========================================
-    // JARVIS用の短い回答を作る
+    // JARVIS用回答
     // ========================================
 
     function createJarvisAnswer(
@@ -242,8 +231,6 @@
           first.extract.trim();
 
 
-        // 長すぎる文章を短くする
-
         if (summary.length > 180) {
 
           summary =
@@ -263,7 +250,7 @@
       if (pages.length > 1) {
 
         text +=
-          `関連する情報を` +
+          ` 関連する情報も` +
           `${pages.length}件確認しました。`;
       }
 
@@ -283,18 +270,14 @@
         status.textContent =
           "検索エラー";
 
-
         answer.textContent =
           "検索する内容がありません。";
-
 
         result.textContent =
           "検索ワードを指定してください。";
 
-
         speakButton.disabled =
           true;
-
 
         return;
       }
@@ -347,35 +330,27 @@
             : [];
 
 
-        // ====================================
-        // 検索結果なし
-        // ====================================
-
         if (!pages.length) {
 
           status.textContent =
             "検索結果なし";
 
-
           answer.textContent =
             `「${query}」について、` +
             `情報を見つけられませんでした。`;
 
-
           result.innerHTML =
             "検索結果がありませんでした。";
 
-
           speakButton.disabled =
             true;
-
 
           return;
         }
 
 
         // ====================================
-        // JARVIS回答
+        // JARVIS回答作成
         // ====================================
 
         speechText =
@@ -502,7 +477,7 @@
 
 
     // ========================================
-    // JARVIS回答を読み上げ
+    // 自然なJARVIS音声
     // ========================================
 
     speakButton.addEventListener(
@@ -510,7 +485,6 @@
       () => {
 
         if (!speechText) {
-
           return;
         }
 
@@ -526,54 +500,104 @@
         }
 
 
+        // 前の音声を停止
+
         window.speechSynthesis.cancel();
 
 
-        const utterance =
-          new SpeechSynthesisUtterance(
-            speechText
-          );
+        // 少し自然な話し方にするため、
+        // 文章を区切って読み上げる
 
-
-        utterance.lang =
-          "ja-JP";
-
-
-        utterance.rate =
-          0.9;
-
-
-        utterance.pitch =
-          1.0;
-
-
-        utterance.volume =
-          1.0;
+        const sentences =
+          speechText
+            .split(/(?<=[。！？])/)
+            .map(
+              text => text.trim()
+            )
+            .filter(
+              text => text.length > 0
+            );
 
 
         status.textContent =
           "🔊 JARVISが回答しています";
 
 
-        utterance.onend =
-          () => {
+        let index = 0;
+
+
+        function speakNext() {
+
+          if (index >= sentences.length) {
 
             status.textContent =
               "回答完了";
-          };
+
+            return;
+          }
 
 
-        utterance.onerror =
-          () => {
-
-            status.textContent =
-              "読み上げエラー";
-          };
+          const text =
+            sentences[index];
 
 
-        window.speechSynthesis.speak(
-          utterance
-        );
+          const utterance =
+            new SpeechSynthesisUtterance(
+              text
+            );
+
+
+          utterance.lang =
+            "ja-JP";
+
+
+          // 少しゆっくり
+
+          utterance.rate =
+            0.85;
+
+
+          // 少し落ち着いた声
+
+          utterance.pitch =
+            0.95;
+
+
+          utterance.volume =
+            1.0;
+
+
+          utterance.onend =
+            () => {
+
+              index++;
+
+
+              // 文と文の間に
+              // 少しだけ間を入れる
+
+              setTimeout(
+                speakNext,
+                180
+              );
+            };
+
+
+          utterance.onerror =
+            () => {
+
+              statusText =
+                "読み上げエラー";
+            };
+
+
+          window.speechSynthesis.speak(
+            utterance
+          );
+        }
+
+
+        speakNext();
       }
     );
 
@@ -587,7 +611,6 @@
       () => {
 
         if (!query) {
-
           return;
         }
 
