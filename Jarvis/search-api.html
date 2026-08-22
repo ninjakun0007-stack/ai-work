@@ -43,10 +43,13 @@
 
     #answer {
       max-width: 700px;
+
       margin: 25px auto;
-      padding: 20px;
+
+      padding: 22px;
 
       border: 1px solid #444;
+
       border-radius: 12px;
 
       font-size: 19px;
@@ -54,15 +57,19 @@
 
     #result {
       max-width: 700px;
+
       margin: 0 auto;
+
       padding: 20px;
 
       border: 1px solid #333;
+
       border-radius: 12px;
     }
 
     #result article {
       margin-bottom: 25px;
+
       padding-bottom: 20px;
 
       border-bottom: 1px solid #333;
@@ -80,11 +87,13 @@
       display: block;
 
       margin: 20px auto;
+
       padding: 14px 25px;
 
       font-size: 17px;
 
       border: none;
+
       border-radius: 10px;
 
       cursor: pointer;
@@ -92,11 +101,13 @@
 
     #speakButton {
       background: #fff;
+
       color: #000;
     }
 
     #googleButton {
       background: #333;
+
       color: #fff;
     }
   </style>
@@ -176,7 +187,7 @@
 
 
     // ========================================
-    // 読み上げ文章
+    // JARVIS音声用文章
     // ========================================
 
     let speechText = "";
@@ -188,12 +199,12 @@
 
     queryElement.textContent =
       query
-        ? `「${query}」を調べています`
+        ? `「${query}」について調べています`
         : "検索内容がありません";
 
 
     // ========================================
-    // JARVIS用回答
+    // 人間らしいJARVIS回答を作る
     // ========================================
 
     function createJarvisAnswer(
@@ -204,8 +215,9 @@
       if (!pages.length) {
 
         return (
+          `申し訳ありません。` +
           `「${searchQuery}」について、` +
-          `情報を見つけられませんでした。`
+          `今のところ確認できる情報が見つかりませんでした。`
         );
       }
 
@@ -214,48 +226,74 @@
         pages[0];
 
 
-      let text =
-        `「${searchQuery}」について検索しました。`;
+      let title =
+        first.title || "";
 
 
-      if (first.title) {
+      let description =
+        first.extract || "";
 
-        text +=
-          `まず、${first.title}についてです。`;
+
+      description =
+        description.trim();
+
+
+      // 長すぎる説明を短くする
+
+      if (description.length > 220) {
+
+        description =
+          description.substring(
+            0,
+            220
+          ) +
+          "。";
       }
 
 
-      if (first.extract) {
+      // ====================================
+      // 会話調の回答
+      // ====================================
 
-        let summary =
-          first.extract.trim();
-
-
-        if (summary.length > 180) {
-
-          summary =
-            summary.substring(
-              0,
-              180
-            ) +
-            "。";
-        }
+      let response =
+        `はい、調べました。`;
 
 
-        text +=
-          summary;
+      response +=
+        `「${searchQuery}」についてですね。`;
+
+
+      if (title) {
+
+        response +=
+          `${title}について確認したところ、`;
+      }
+
+
+      if (description) {
+
+        response +=
+          description;
+      } else {
+
+        response +=
+          `詳しい情報を確認できませんでした。`;
       }
 
 
       if (pages.length > 1) {
 
-        text +=
-          ` 関連する情報も` +
-          `${pages.length}件確認しました。`;
+        response +=
+          `ほかにも関連する情報を` +
+          `${pages.length - 1}件確認しています。`;
       }
 
 
-      return text;
+      response +=
+        `以上が、現在確認できた情報です。`;
+
+
+      return response;
     }
 
 
@@ -270,14 +308,18 @@
         status.textContent =
           "検索エラー";
 
+
         answer.textContent =
           "検索する内容がありません。";
+
 
         result.textContent =
           "検索ワードを指定してください。";
 
+
         speakButton.disabled =
           true;
+
 
         return;
       }
@@ -330,27 +372,36 @@
             : [];
 
 
+        // ====================================
+        // 検索結果なし
+        // ====================================
+
         if (!pages.length) {
 
           status.textContent =
             "検索結果なし";
 
-          answer.textContent =
+
+          speechText =
+            `申し訳ありません。` +
             `「${query}」について、` +
             `情報を見つけられませんでした。`;
+
+
+          answer.textContent =
+            speechText;
+
 
           result.innerHTML =
             "検索結果がありませんでした。";
 
-          speakButton.disabled =
-            true;
 
           return;
         }
 
 
         // ====================================
-        // JARVIS回答作成
+        // JARVIS回答
         // ====================================
 
         speechText =
@@ -462,22 +513,22 @@
           "検索エラー";
 
 
+        speechText =
+          "申し訳ありません。ネット検索中に問題が発生しました。";
+
+
         answer.textContent =
-          "ネット検索中にエラーが発生しました。";
+          speechText;
 
 
         result.textContent =
           "検索結果を取得できませんでした。";
-
-
-        speakButton.disabled =
-          true;
       }
     }
 
 
     // ========================================
-    // 自然なJARVIS音声
+    // JARVIS音声
     // ========================================
 
     speakButton.addEventListener(
@@ -485,6 +536,7 @@
       () => {
 
         if (!speechText) {
+
           return;
         }
 
@@ -500,13 +552,12 @@
         }
 
 
-        // 前の音声を停止
-
         window.speechSynthesis.cancel();
 
 
-        // 少し自然な話し方にするため、
-        // 文章を区切って読み上げる
+        // ====================================
+        // 自然な間を作る
+        // ====================================
 
         const sentences =
           speechText
@@ -528,7 +579,10 @@
 
         function speakNext() {
 
-          if (index >= sentences.length) {
+          if (
+            index >=
+            sentences.length
+          ) {
 
             status.textContent =
               "回答完了";
@@ -537,13 +591,9 @@
           }
 
 
-          const text =
-            sentences[index];
-
-
           const utterance =
             new SpeechSynthesisUtterance(
-              text
+              sentences[index]
             );
 
 
@@ -551,16 +601,16 @@
             "ja-JP";
 
 
-          // 少しゆっくり
+          // 人間らしく少しゆっくり
 
           utterance.rate =
-            0.85;
+            0.88;
 
 
-          // 少し落ち着いた声
+          // 少し低めで落ち着いた声
 
           utterance.pitch =
-            0.95;
+            0.92;
 
 
           utterance.volume =
@@ -573,12 +623,11 @@
               index++;
 
 
-              // 文と文の間に
-              // 少しだけ間を入れる
+              // 文と文の間
 
               setTimeout(
                 speakNext,
-                180
+                250
               );
             };
 
@@ -586,7 +635,7 @@
           utterance.onerror =
             () => {
 
-              statusText =
+              status.textContent =
                 "読み上げエラー";
             };
 
@@ -611,6 +660,7 @@
       () => {
 
         if (!query) {
+
           return;
         }
 
