@@ -15,6 +15,7 @@ if (!SpeechRecognition) {
   recognition.lang = "ja-JP";
   recognition.continuous = false;
   recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
 
   let listening = false;
 
@@ -23,6 +24,7 @@ if (!SpeechRecognition) {
 
     try {
       listening = true;
+
       message.textContent = "お話しください";
       statusText.textContent = "聞いています...";
       talkButton.textContent = "🔴 聞いています";
@@ -30,11 +32,17 @@ if (!SpeechRecognition) {
       recognition.start();
     } catch (error) {
       listening = false;
+
       message.textContent = "音声入力を開始できませんでした";
       statusText.textContent = error.message || "開始エラー";
       talkButton.textContent = "🎙️ 話す";
     }
   });
+
+  recognition.onstart = () => {
+    listening = true;
+    statusText.textContent = "聞いています...";
+  };
 
   recognition.onresult = (event) => {
     const text = event.results[0][0].transcript;
@@ -44,20 +52,21 @@ if (!SpeechRecognition) {
 
     const reply = getJarvisReply(text);
 
-    message.textContent = reply;
-    statusText.textContent = "JARVISが話します";
-
-    // iPhone Safari対策
     setTimeout(() => {
+      message.textContent = reply;
+      statusText.textContent = "JARVIS応答";
+
       speak(reply);
-    }, 100);
+    }, 300);
   };
 
   recognition.onerror = (event) => {
     listening = false;
 
     message.textContent = "もう一度お話しください";
-    statusText.textContent = event.error || "音声入力エラー";
+    statusText.textContent =
+      event.error || "音声入力エラー";
+
     talkButton.textContent = "🎙️ 話す";
   };
 
@@ -68,43 +77,222 @@ if (!SpeechRecognition) {
 }
 
 
-// JARVISの無料版返答
+// ========================================
+// JARVIS 無料版・簡単質問システム
+// ========================================
+
 function getJarvisReply(text) {
-  if (text.includes("こんにちは")) {
+
+  const now = new Date();
+
+  // ----------------
+  // あいさつ
+  // ----------------
+
+  if (
+    text.includes("こんにちは") ||
+    text.includes("こんばんは") ||
+    text.includes("おはよう")
+  ) {
     return "こんにちは。JARVISです。今日は何をお手伝いしましょうか？";
   }
 
-  if (text.includes("名前")) {
+
+  // ----------------
+  // 名前
+  // ----------------
+
+  if (
+    text.includes("名前") ||
+    text.includes("誰")
+  ) {
     return "私の名前はJ.A.R.V.I.S.です。";
   }
 
-  if (text.includes("元気")) {
+
+  // ----------------
+  // 元気・状態
+  // ----------------
+
+  if (
+    text.includes("元気") ||
+    text.includes("調子") ||
+    text.includes("状態")
+  ) {
     return "はい。システムは正常に稼働しています。";
   }
 
-  if (text.includes("ありがとう")) {
+
+  // ----------------
+  // 現在時刻
+  // ----------------
+
+  if (
+    text.includes("何時") ||
+    text.includes("時間") ||
+    text.includes("現在時刻")
+  ) {
+
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+
+    return `現在の時刻は、${hour}時${minute}分です。`;
+  }
+
+
+  // ----------------
+  // 今日の日付
+  // ----------------
+
+  if (
+    text.includes("何日") ||
+    text.includes("今日の日付") ||
+    text.includes("今日は何日")
+  ) {
+
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const date = now.getDate();
+
+    return `今日は${year}年${month}月${date}日です。`;
+  }
+
+
+  // ----------------
+  // 曜日
+  // ----------------
+
+  if (
+    text.includes("何曜日") ||
+    text.includes("曜日")
+  ) {
+
+    const days = [
+      "日曜日",
+      "月曜日",
+      "火曜日",
+      "水曜日",
+      "木曜日",
+      "金曜日",
+      "土曜日"
+    ];
+
+    return `今日は${days[now.getDay()]}です。`;
+  }
+
+
+  // ----------------
+  // ありがとう
+  // ----------------
+
+  if (
+    text.includes("ありがとう") ||
+    text.includes("感謝")
+  ) {
     return "どういたしまして。いつでもお呼びください。";
   }
 
-  if (text.includes("時間")) {
-    const now = new Date();
-    return `現在の時刻は${now.getHours()}時${now.getMinutes()}分です。`;
+
+  // ----------------
+  // 何ができる？
+  // ----------------
+
+  if (
+    text.includes("何ができる") ||
+    text.includes("何ができますか") ||
+    text.includes("できること")
+  ) {
+
+    return "現在、時刻、日付、曜日、簡単な計算、挨拶などに対応しています。";
   }
 
-  return `「${text}」ですね。現在は無料版JARVISなので、登録された質問に対応しています。`;
+
+  // ========================================
+  // 簡単な計算
+  // ========================================
+
+  const calculation = text.match(
+    /(-?\d+(?:\.\d+)?)\s*(たす|足す|\+|引く|ひく|マイナス|掛ける|かける|×|割る|わる|÷)\s*(-?\d+(?:\.\d+)?)/
+  );
+
+  if (calculation) {
+
+    const a = Number(calculation[1]);
+    const operator = calculation[2];
+    const b = Number(calculation[3]);
+
+    // 足し算
+    if (
+      operator === "たす" ||
+      operator === "足す" ||
+      operator === "+"
+    ) {
+
+      return `${a}足す${b}は${a + b}です。`;
+    }
+
+
+    // 引き算
+    if (
+      operator === "引く" ||
+      operator === "ひく" ||
+      operator === "マイナス"
+    ) {
+
+      return `${a}引く${b}は${a - b}です。`;
+    }
+
+
+    // 掛け算
+    if (
+      operator === "掛ける" ||
+      operator === "かける" ||
+      operator === "×"
+    ) {
+
+      return `${a}掛ける${b}は${a * b}です。`;
+    }
+
+
+    // 割り算
+    if (
+      operator === "割る" ||
+      operator === "わる" ||
+      operator === "÷"
+    ) {
+
+      if (b === 0) {
+        return "0では割ることができません。";
+      }
+
+      return `${a}割る${b}は${a / b}です。`;
+    }
+  }
+
+
+  // ----------------
+  // 未対応の質問
+  // ----------------
+
+  return `「${text}」ですね。現在は、時刻、日付、曜日、簡単な計算などに対応しています。`;
 }
 
 
+// ========================================
 // 音声読み上げ
+// ========================================
+
 function speak(text) {
-  if (!window.speechSynthesis) {
+
+  if (!("speechSynthesis" in window)) {
     statusText.textContent = "音声読み上げ非対応";
     return;
   }
 
   window.speechSynthesis.cancel();
 
-  const utterance = new SpeechSynthesisUtterance(text);
+  const utterance =
+    new SpeechSynthesisUtterance(text);
 
   utterance.lang = "ja-JP";
   utterance.rate = 0.9;
@@ -119,9 +307,8 @@ function speak(text) {
     statusText.textContent = "待機中";
   };
 
-  utterance.onerror = (event) => {
+  utterance.onerror = () => {
     statusText.textContent = "読み上げエラー";
-    console.log("Speech error:", event.error);
   };
 
   window.speechSynthesis.speak(utterance);
