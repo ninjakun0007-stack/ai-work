@@ -6,6 +6,7 @@ export default {
       "Access-Control-Allow-Headers": "Content-Type"
     };
 
+    // OPTIONS
     if (request.method === "OPTIONS") {
       return new Response(null, {
         status: 204,
@@ -13,7 +14,7 @@ export default {
       });
     }
 
-    // 動作確認
+    // GET
     if (request.method === "GET") {
       return new Response(
         JSON.stringify({
@@ -24,6 +25,7 @@ export default {
           elevenlabs: !!env.ELEVENLABS_API_KEY
         }),
         {
+          status: 200,
           headers: {
             "Content-Type": "application/json; charset=UTF-8",
             ...corsHeaders
@@ -32,11 +34,20 @@ export default {
       );
     }
 
+    // POST only
     if (request.method !== "POST") {
-      return new Response("POST only", {
-        status: 405,
-        headers: corsHeaders
-      });
+      return new Response(
+        JSON.stringify({
+          error: "POST only"
+        }),
+        {
+          status: 405,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders
+          }
+        }
+      );
     }
 
     try {
@@ -62,9 +73,9 @@ export default {
         );
       }
 
-      // =========================
-      // OpenAI
-      // =========================
+      // ==============================
+      // OpenAI API
+      // ==============================
 
       if (!env.OPENAI_API_KEY) {
         return new Response(
@@ -95,7 +106,7 @@ export default {
               {
                 role: "system",
                 content:
-                  "あなたはJARVISです。日本語で自然に、簡潔に、会話するように回答してください。"
+                  "あなたはJARVISです。日本語で自然に会話してください。回答は簡潔で分かりやすくしてください。"
               },
               {
                 role: "user",
@@ -106,13 +117,13 @@ export default {
         }
       );
 
-      if (!openaiResponse.ok) {
-        const errorText = await openaiResponse.text();
+      const openaiData = await openaiResponse.json();
 
+      if (!openaiResponse.ok) {
         return new Response(
           JSON.stringify({
-            error: "OpenAI APIに接続できませんでした",
-            detail: errorText
+            error: "OpenAI APIエラー",
+            detail: openaiData
           }),
           {
             status: 500,
@@ -124,15 +135,20 @@ export default {
         );
       }
 
-      const openaiData = await openaiResponse.json();
-
+      // OpenAI回答を取得
       const reply =
         openaiData.output_text ||
+        openaiData.output
+          ?.filter(item => item.type === "message")
+          ?.flatMap(item => item.content || [])
+          ?.filter(content => content.type === "output_text")
+          ?.map(content => content.text)
+          ?.join("") ||
         "申し訳ありません。回答を取得できませんでした。";
 
-      // =========================
-      // ElevenLabs 音声生成
-      // =========================
+      // ==============================
+      // ElevenLabs
+      // ==============================
 
       if (!env.ELEVENLABS_API_KEY) {
         return new Response(
@@ -145,7 +161,7 @@ export default {
           {
             status: 200,
             headers: {
-              "Content-Type": "application/json",
+              "Content-Type": "application/json; charset=UTF-8",
               ...corsHeaders
             }
           }
@@ -175,6 +191,7 @@ export default {
         }
       );
 
+      // ElevenLabsエラーでもOpenAI回答は返す
       if (!elevenResponse.ok) {
         const errorText = await elevenResponse.text();
 
@@ -189,16 +206,16 @@ export default {
           {
             status: 200,
             headers: {
-              "Content-Type": "application/json",
+              "Content-Type": "application/json; charset=UTF-8",
               ...corsHeaders
             }
           }
         );
       }
 
+      // 音声データ
       const audio = await elevenResponse.arrayBuffer();
 
-      // 音声をBase64化
       const bytes = new Uint8Array(audio);
       let binary = "";
 
@@ -211,6 +228,10 @@ export default {
       }
 
       const audioBase64 = btoa(binary);
+
+      // ==============================
+      // 最終レスポンス
+      // ==============================
 
       return new Response(
         JSON.stringify({
@@ -238,7 +259,7 @@ export default {
         {
           status: 500,
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type": "application/json; charset=UTF-8",
             ...corsHeaders
           }
         }
