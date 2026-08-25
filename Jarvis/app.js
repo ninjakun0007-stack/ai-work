@@ -60,6 +60,7 @@ if (!SpeechRecognition) {
     }
   });
 
+
   recognition.onresult = async (event) => {
 
     const text =
@@ -110,7 +111,24 @@ if (!SpeechRecognition) {
       statusText.textContent =
         "JARVIS応答";
 
-      speak(reply);
+
+      // ========================================
+      // ElevenLabs音声を再生
+      // ========================================
+
+      if (data.audio) {
+
+        statusText.textContent =
+          "🔊 JARVISが話しています";
+
+        playElevenLabsAudio(data.audio);
+
+      } else {
+
+        // ElevenLabs音声がない場合は標準音声に戻す
+        speakFallback(reply);
+      }
+
 
     } catch (error) {
 
@@ -121,9 +139,9 @@ if (!SpeechRecognition) {
 
       statusText.textContent =
         "接続エラー";
-
     }
   };
+
 
   recognition.onerror = (event) => {
 
@@ -139,6 +157,7 @@ if (!SpeechRecognition) {
       "🎙️ 話す";
   };
 
+
   recognition.onend = () => {
 
     listening = false;
@@ -149,7 +168,89 @@ if (!SpeechRecognition) {
 }
 
 
-function speak(text) {
+// ========================================
+// ElevenLabs音声再生
+// ========================================
+
+function playElevenLabsAudio(base64Audio) {
+
+  try {
+
+    const binaryString =
+      atob(base64Audio);
+
+    const len =
+      binaryString.length;
+
+    const bytes =
+      new Uint8Array(len);
+
+    for (let i = 0; i < len; i++) {
+      bytes[i] =
+        binaryString.charCodeAt(i);
+    }
+
+    const blob =
+      new Blob(
+        [bytes],
+        {
+          type: "audio/mpeg"
+        }
+      );
+
+    const audioUrl =
+      URL.createObjectURL(blob);
+
+    const audio =
+      new Audio(audioUrl);
+
+    audio.volume = 1.0;
+
+    audio.onended = () => {
+
+      URL.revokeObjectURL(audioUrl);
+
+      statusText.textContent =
+        "待機中";
+    };
+
+    audio.onerror = () => {
+
+      URL.revokeObjectURL(audioUrl);
+
+      statusText.textContent =
+        "音声再生エラー";
+    };
+
+    audio.play().catch(error => {
+
+      console.error(
+        "Audio play error:",
+        error
+      );
+
+      statusText.textContent =
+        "音声再生を開始できませんでした";
+    });
+
+  } catch (error) {
+
+    console.error(
+      "ElevenLabs audio error:",
+      error
+    );
+
+    statusText.textContent =
+      "音声処理エラー";
+  }
+}
+
+
+// ========================================
+// ElevenLabsが使えない場合の予備音声
+// ========================================
+
+function speakFallback(text) {
 
   if (!("speechSynthesis" in window)) {
 
@@ -164,10 +265,17 @@ function speak(text) {
   const utterance =
     new SpeechSynthesisUtterance(text);
 
-  utterance.lang = "ja-JP";
-  utterance.rate = 0.95;
-  utterance.pitch = 1.0;
-  utterance.volume = 1.0;
+  utterance.lang =
+    "ja-JP";
+
+  utterance.rate =
+    0.95;
+
+  utterance.pitch =
+    1.0;
+
+  utterance.volume =
+    1.0;
 
   utterance.onstart = () => {
 
@@ -187,5 +295,7 @@ function speak(text) {
       "読み上げエラー";
   };
 
-  window.speechSynthesis.speak(utterance);
+  window.speechSynthesis.speak(
+    utterance
+  );
 }
