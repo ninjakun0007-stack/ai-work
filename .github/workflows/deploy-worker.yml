@@ -1,152 +1,214 @@
-name: Deploy Worker
+const talkButton = document.getElementById("talkButton");
+const message = document.getElementById("message");
+const statusText = document.getElementById("statusText");
 
-on:
-  workflow_dispatch:
+const WORKER_URL =
+  "https://jarvis-voice.ninjakun0007.workers.dev";
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
+const SpeechRecognition =
+  window.SpeechRecognition ||
+  window.webkitSpeechRecognition;
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+if (!SpeechRecognition) {
+  message.textContent =
+    "このSafariでは音声入力を利用できません";
+  statusText.textContent =
+    "音声認識非対応";
+  talkButton.disabled = true;
+} else {
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
+  const recognition = new SpeechRecognition();
 
-      - name: Install Wrangler
-        run: npm install -g wrangler
+  recognition.lang = "ja-JP";
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
 
-      - name: Create Worker
-        run: |
-          mkdir -p worker
+  let listening = false;
 
-          cat > worker/index.js <<'EOF'
-          export default {
-            async fetch(request, env) {
-              const corsHeaders = {
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type"
-              };
+  talkButton.addEventListener("click", () => {
 
-              if (request.method === "OPTIONS") {
-                return new Response(null, {
-                  headers: corsHeaders
-                });
-              }
+    if (listening) return;
 
-              if (request.method === "GET") {
-                return new Response("JARVIS Worker ONLINE", {
-                  headers: corsHeaders
-                });
-              }
+    try {
 
-              if (request.method !== "POST") {
-                return new Response("Method Not Allowed", {
-                  status: 405,
-                  headers: corsHeaders
-                });
-              }
+      listening = true;
 
-              try {
-                const body = await request.json();
-                const text = body.text || "";
+      message.textContent =
+        "お話しください";
 
-                if (!text) {
-                  return new Response(
-                    JSON.stringify({
-                      error: "text is required"
-                    }),
-                    {
-                      status: 400,
-                      headers: {
-                        ...corsHeaders,
-                        "Content-Type": "application/json"
-                      }
-                    }
-                  );
-                }
+      statusText.textContent =
+        "聞いています...";
 
-                const response = await fetch(
-                  "https://api.openai.com/v1/responses",
-                  {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      "Authorization": `Bearer ${env.OPENAI_API_KEY}`
-                    },
-                    body: JSON.stringify({
-                      model: "gpt-5-mini",
-                      instructions:
-                        "あなたはJ.A.R.V.I.S.です。日本語で自然に、簡潔に会話してください。",
-                      input: text
-                    })
-                  }
-                );
+      talkButton.textContent =
+        "🔴 聞いています";
 
-                const data = await response.json();
+      recognition.start();
 
-                if (!response.ok) {
-                  return new Response(
-                    JSON.stringify({
-                      error: data
-                    }),
-                    {
-                      status: response.status,
-                      headers: {
-                        ...corsHeaders,
-                        "Content-Type": "application/json"
-                      }
-                    }
-                  );
-                }
+    } catch (error) {
 
-                const reply =
-                  data.output_text ||
-                  "申し訳ありません。回答を取得できませんでした。";
+      listening = false;
 
-                return new Response(
-                  JSON.stringify({
-                    reply: reply
-                  }),
-                  {
-                    headers: {
-                      ...corsHeaders,
-                      "Content-Type": "application/json"
-                    }
-                  }
-                );
+      message.textContent =
+        "音声入力を開始できませんでした";
 
-              } catch (error) {
-                return new Response(
-                  JSON.stringify({
-                    error: error.message
-                  }),
-                  {
-                    status: 500,
-                    headers: {
-                      ...corsHeaders,
-                      "Content-Type": "application/json"
-                    }
-                  }
-                );
-              }
-            }
-          };
-          EOF
+      statusText.textContent =
+        error.message || "開始エラー";
 
-          cat > worker/wrangler.toml <<'EOF'
-          name = "jarvis-voice"
-          main = "index.js"
-          compatibility_date = "2026-08-24"
-          EOF
+      talkButton.textContent =
+        "🎙️ 話す";
+    }
+  });
 
-      - name: Deploy to Cloudflare
-        working-directory: worker
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: wrangler deploy
+
+  recognition.onresult = async (event) => {
+
+    const text =
+      event.results[0][0].transcript.trim();
+
+    message.textContent =
+      `「${text}」`;
+
+    if (!text) return;
+
+    statusText.textContent =
+      "JARVISが考えています...";
+
+    try {
+
+      const response =
+        await fetch(WORKER_URL, {
+
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json"
+          },
+
+          body: JSON.stringify({
+            text: text
+          })
+        });
+
+
+      const data =
+        await response.json();
+
+
+      if (!response.ok) {
+
+        throw new Error(
+          data.error
+            ? JSON.stringify(data.error)
+            : "Worker error"
+        );
+      }
+
+
+      const reply =
+        data.reply ||
+        "申し訳ありません。回答を取得できませんでした。";
+
+
+      message.textContent =
+        reply;
+
+      statusText.textContent =
+        "JARVIS応答";
+
+      speak(reply);
+
+    } catch (error) {
+
+      console.error(error);
+
+      message.textContent =
+        "AIとの接続に失敗しました";
+
+      statusText.textContent =
+        "接続エラー";
+
+    }
+  };
+
+
+  recognition.onerror = (event) => {
+
+    listening = false;
+
+    message.textContent =
+      "もう一度お話しください";
+
+    statusText.textContent =
+      event.error || "音声入力エラー";
+
+    talkButton.textContent =
+      "🎙️ 話す";
+  };
+
+
+  recognition.onend = () => {
+
+    listening = false;
+
+    talkButton.textContent =
+      "🎙️ 話す";
+  };
+}
+
+
+// ========================================
+// 音声読み上げ
+// ========================================
+
+function speak(text) {
+
+  if (!("speechSynthesis" in window)) {
+
+    statusText.textContent =
+      "音声読み上げ非対応";
+
+    return;
+  }
+
+
+  window.speechSynthesis.cancel();
+
+
+  const utterance =
+    new SpeechSynthesisUtterance(text);
+
+  utterance.lang = "ja-JP";
+
+  utterance.rate = 0.95;
+
+  utterance.pitch = 1.0;
+
+  utterance.volume = 1.0;
+
+
+  utterance.onstart = () => {
+
+    statusText.textContent =
+      "🔊 JARVISが話しています";
+  };
+
+
+  utterance.onend = () => {
+
+    statusText.textContent =
+      "待機中";
+  };
+
+
+  utterance.onerror = () => {
+
+    statusText.textContent =
+      "読み上げエラー";
+  };
+
+
+  window.speechSynthesis.speak(
+    utterance
+  );
+}
