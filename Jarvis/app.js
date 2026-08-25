@@ -60,7 +60,6 @@ if (!SpeechRecognition) {
     }
   });
 
-
   recognition.onresult = async (event) => {
 
     const text =
@@ -78,37 +77,32 @@ if (!SpeechRecognition) {
 
       const response =
         await fetch(WORKER_URL, {
-
           method: "POST",
-
           headers: {
             "Content-Type": "application/json"
           },
-
           body: JSON.stringify({
             text: text
           })
         });
 
-
       const data =
         await response.json();
 
-
       if (!response.ok) {
 
-        throw new Error(
-          data.error
-            ? JSON.stringify(data.error)
-            : "Worker error"
-        );
-      }
+        const errorMessage =
+          data?.error?.error?.message ||
+          data?.error?.message ||
+          JSON.stringify(data?.error) ||
+          `HTTP ${response.status}`;
 
+        throw new Error(errorMessage);
+      }
 
       const reply =
         data.reply ||
         "申し訳ありません。回答を取得できませんでした。";
-
 
       message.textContent =
         reply;
@@ -120,17 +114,16 @@ if (!SpeechRecognition) {
 
     } catch (error) {
 
-      console.error(error);
+      console.error("JARVIS ERROR:", error);
 
       message.textContent =
-        "AIとの接続に失敗しました";
+        "エラー：" + error.message;
 
       statusText.textContent =
         "接続エラー";
 
     }
   };
-
 
   recognition.onerror = (event) => {
 
@@ -146,7 +139,6 @@ if (!SpeechRecognition) {
       "🎙️ 話す";
   };
 
-
   recognition.onend = () => {
 
     listening = false;
@@ -156,10 +148,6 @@ if (!SpeechRecognition) {
   };
 }
 
-
-// ========================================
-// 音声読み上げ
-// ========================================
 
 function speak(text) {
 
@@ -171,21 +159,15 @@ function speak(text) {
     return;
   }
 
-
   window.speechSynthesis.cancel();
-
 
   const utterance =
     new SpeechSynthesisUtterance(text);
 
   utterance.lang = "ja-JP";
-
   utterance.rate = 0.95;
-
   utterance.pitch = 1.0;
-
   utterance.volume = 1.0;
-
 
   utterance.onstart = () => {
 
@@ -193,13 +175,11 @@ function speak(text) {
       "🔊 JARVISが話しています";
   };
 
-
   utterance.onend = () => {
 
     statusText.textContent =
       "待機中";
   };
-
 
   utterance.onerror = () => {
 
@@ -207,8 +187,5 @@ function speak(text) {
       "読み上げエラー";
   };
 
-
-  window.speechSynthesis.speak(
-    utterance
-  );
+  window.speechSynthesis.speak(utterance);
 }
