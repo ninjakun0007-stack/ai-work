@@ -11,11 +11,12 @@ const SpeechRecognition =
   window.webkitSpeechRecognition;
 
 let recognition = null;
-let listening = false;
 let audioContext = null;
 let currentSource = null;
+
+let listening = false;
+let conversationStarted = false;
 let starting = false;
-let autoListen = true;
 
 
 // ========================================
@@ -44,27 +45,22 @@ function getAudioContext() {
 
 
 // ========================================
-// AudioContextを起動
+// AudioContext起動
 // ========================================
 
 async function unlockAudio() {
 
-  try {
+  const ctx =
+    getAudioContext();
 
-    const ctx =
-      getAudioContext();
-
-    if (ctx.state === "suspended") {
-      await ctx.resume();
-    }
-
-  } catch (error) {
-
-    console.log(
-      "Audio unlock:",
-      error.message
-    );
+  if (ctx.state === "suspended") {
+    await ctx.resume();
   }
+
+  console.log(
+    "AudioContext:",
+    ctx.state
+  );
 }
 
 
@@ -82,12 +78,10 @@ async function testWebAudio() {
     message.textContent =
       "テスト音を再生しています";
 
+    await unlockAudio();
+
     const ctx =
       getAudioContext();
-
-    if (ctx.state === "suspended") {
-      await ctx.resume();
-    }
 
     const oscillator =
       ctx.createOscillator();
@@ -157,7 +151,7 @@ if (audioTestButton) {
 
 
 // ========================================
-// SpeechRecognitionを新規作成
+// SpeechRecognition作成
 // ========================================
 
 function createRecognition() {
@@ -183,7 +177,7 @@ function createRecognition() {
 
 
   // ======================================
-  // 音声結果
+  // 認識結果
   // ======================================
 
   r.onresult =
@@ -206,10 +200,11 @@ function createRecognition() {
 
       if (!text) {
 
-        scheduleAutoListen();
+        restartListening();
 
         return;
       }
+
 
       statusText.textContent =
         "JARVISが考えています...";
@@ -281,7 +276,7 @@ function createRecognition() {
 
 
         // ==================================
-        // ElevenLabs音声
+        // ElevenLabs音声あり
         // ==================================
 
         if (
@@ -292,20 +287,24 @@ function createRecognition() {
           statusText.textContent =
             "🔊 JARVISが話しています";
 
+
           await playAudioWithWebAudio(
             data.audio
           );
+
 
         } else {
 
           statusText.textContent =
             "音声データなし";
 
+
           message.textContent =
             reply +
             "\n\n【ElevenLabs音声なし】";
 
-          scheduleAutoListen();
+
+          restartListening();
         }
 
 
@@ -316,14 +315,17 @@ function createRecognition() {
           error
         );
 
+
         message.textContent =
           "接続エラー：\n" +
           error.message;
 
+
         statusText.textContent =
           "接続エラー";
 
-        scheduleAutoListen();
+
+        restartListening();
       }
     };
 
@@ -338,9 +340,10 @@ function createRecognition() {
       listening = false;
 
       console.log(
-        "SpeechRecognition error:",
+        "SpeechRecognition ERROR:",
         event.error
       );
+
 
       if (
         event.error ===
@@ -351,7 +354,7 @@ function createRecognition() {
           "マイク許可が必要です";
 
         message.textContent =
-          "iPhoneのマイク許可を確認してください";
+          "Safariのマイク許可を確認してください";
 
         if (talkButton) {
           talkButton.textContent =
@@ -370,9 +373,8 @@ function createRecognition() {
         statusText.textContent =
           "待機中";
 
-        if (talkButton) {
-          talkButton.textContent =
-            "🎙️ 話す";
+        if (conversationStarted) {
+          restartListening();
         }
 
         return;
@@ -380,7 +382,6 @@ function createRecognition() {
 
 
       statusText.textContent =
-        event.error ||
         "音声入力エラー";
 
       if (talkButton) {
@@ -388,12 +389,15 @@ function createRecognition() {
           "🎙️ 話す";
       }
 
-      scheduleAutoListen();
+
+      if (conversationStarted) {
+        restartListening();
+      }
     };
 
 
   // ======================================
-  // 音声認識終了
+  // 認識終了
   // ======================================
 
   r.onend =
@@ -407,7 +411,7 @@ function createRecognition() {
       }
 
       console.log(
-        "SpeechRecognition ended"
+        "SpeechRecognition END"
       );
     };
 
@@ -417,7 +421,7 @@ function createRecognition() {
 
 
 // ========================================
-// 音声認識開始
+// マイク開始
 // ========================================
 
 async function startListening() {
@@ -442,6 +446,10 @@ async function startListening() {
   try {
 
     starting = true;
+
+
+    // ユーザー操作後なので
+    // AudioContextを起動できる
 
     await unlockAudio();
 
@@ -479,16 +487,17 @@ async function startListening() {
 
 
     console.log(
-      "SpeechRecognition START"
+      "MIC START"
     );
 
 
   } catch (error) {
 
     console.error(
-      "START LISTENING ERROR:",
+      "MIC START ERROR:",
       error
     );
+
 
     listening = false;
 
@@ -503,7 +512,6 @@ async function startListening() {
     statusText.textContent =
       "待機中";
 
-
   } finally {
 
     starting = false;
@@ -515,11 +523,12 @@ async function startListening() {
 // 自動再開
 // ========================================
 
-function scheduleAutoListen() {
+function restartListening() {
 
-  if (!autoListen) {
+  if (!conversationStarted) {
     return;
   }
+
 
   setTimeout(
     () => {
@@ -527,7 +536,7 @@ function scheduleAutoListen() {
       startListening();
 
     },
-    1200
+    1000
   );
 }
 
@@ -542,7 +551,12 @@ if (talkButton) {
     "click",
     async () => {
 
-      autoListen = true;
+      // この1回のタップで
+      // 連続会話モード開始
+
+      conversationStarted =
+        true;
+
 
       await startListening();
     }
@@ -645,7 +659,8 @@ async function playAudioWithWebAudio(
         currentSource.stop();
       } catch (_) {}
 
-      currentSource = null;
+      currentSource =
+        null;
     }
 
 
@@ -673,6 +688,7 @@ async function playAudioWithWebAudio(
       gain
     );
 
+
     gain.connect(
       ctx.destination
     );
@@ -692,6 +708,7 @@ async function playAudioWithWebAudio(
         currentSource =
           null;
 
+
         statusText.textContent =
           "待機中";
 
@@ -701,8 +718,11 @@ async function playAudioWithWebAudio(
         );
 
 
-        // 音声終了後に自動再開
-        scheduleAutoListen();
+        // ==================================
+        // 音声終了後、自動的に再び聞く
+        // ==================================
+
+        restartListening();
       };
 
 
@@ -740,42 +760,29 @@ async function playAudioWithWebAudio(
       error.message;
 
 
-    scheduleAutoListen();
+    restartListening();
   }
 }
 
 
 // ========================================
-// JARVIS起動時
+// 初期画面
 // ========================================
 
 window.addEventListener(
   "load",
   () => {
 
-    setTimeout(
-      () => {
+    message.textContent =
+      "JARVIS起動完了";
 
-        if (!SpeechRecognition) {
-          return;
-        }
+    statusText.textContent =
+      "🎙️ 話すボタンをタップしてください";
 
+    if (talkButton) {
 
-        message.textContent =
-          "JARVIS起動。お話しください";
-
-
-        statusText.textContent =
-          "🎙️ 起動しています...";
-
-
-        autoListen = true;
-
-
-        startListening();
-
-      },
-      1000
-    );
+      talkButton.textContent =
+        "🎙️ 話す";
+    }
   }
 );
