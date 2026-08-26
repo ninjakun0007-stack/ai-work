@@ -11,17 +11,17 @@ const SpeechRecognition =
   window.webkitSpeechRecognition;
 
 let recognition = null;
-let stopRecognition = null;
 
 let audioContext = null;
 let currentSource = null;
 
 let listening = false;
 let speaking = false;
+let thinking = false;
 let conversationStarted = false;
 
-let starting = false;
-let stopListeningActive = false;
+let restarting = false;
+let shouldListen = false;
 
 
 // ========================================
@@ -35,14 +35,12 @@ function getAudioContext() {
     window.webkitAudioContext;
 
   if (!AudioContext) {
-
     throw new Error(
       "Web Audio APIに対応していません"
     );
   }
 
   if (!audioContext) {
-
     audioContext =
       new AudioContext();
   }
@@ -62,11 +60,7 @@ async function unlockAudio() {
     const ctx =
       getAudioContext();
 
-    if (
-      ctx.state ===
-      "suspended"
-    ) {
-
+    if (ctx.state === "suspended") {
       await ctx.resume();
     }
 
@@ -114,19 +108,13 @@ async function testWebAudio() {
     gain.gain.value =
       0.3;
 
-    oscillator.connect(
-      gain
-    );
-
-    gain.connect(
-      ctx.destination
-    );
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
 
     oscillator.start();
 
     oscillator.stop(
-      ctx.currentTime +
-      0.5
+      ctx.currentTime + 0.5
     );
 
     oscillator.onended =
@@ -210,16 +198,14 @@ function isStopCommand(text) {
 function stopSpeaking() {
 
   console.log(
-    "STOP COMMAND RECEIVED"
+    "JARVIS STOP"
   );
 
 
   if (currentSource) {
 
     try {
-
       currentSource.stop();
-
     } catch (_) {}
 
     currentSource =
@@ -238,182 +224,20 @@ function stopSpeaking() {
     "JARVISの音声を停止しました";
 
 
-  // ストップ監視を停止
+  // マイクはそのまま継続
 
-  stopStopRecognition();
+  if (
+    conversationStarted &&
+    !listening
+  ) {
 
-
-  // その後もう一度聞く
-
-  if (conversationStarted) {
-
-    setTimeout(
-      () => {
-
-        startListening();
-
-      },
-      700
-    );
+    startRecognition();
   }
 }
 
 
 // ========================================
-// 「ストップ」専用音声認識開始
-// ========================================
-
-function startStopRecognition() {
-
-  if (!SpeechRecognition) {
-    return;
-  }
-
-  if (stopListeningActive) {
-    return;
-  }
-
-  try {
-
-    stopRecognition =
-      new SpeechRecognition();
-
-    stopRecognition.lang =
-      "ja-JP";
-
-    stopRecognition.continuous =
-      true;
-
-    stopRecognition.interimResults =
-      true;
-
-    stopRecognition.maxAlternatives =
-      1;
-
-
-    stopRecognition.onresult =
-      (event) => {
-
-        for (
-          let i =
-            event.resultIndex;
-          i <
-            event.results.length;
-          i++
-        ) {
-
-          const text =
-            event.results[i][0]
-              .transcript
-              .trim();
-
-
-          console.log(
-            "STOP LISTENER:",
-            text
-          );
-
-
-          if (
-            isStopCommand(text)
-          ) {
-
-            stopSpeaking();
-
-            return;
-          }
-        }
-      };
-
-
-    stopRecognition.onerror =
-      (event) => {
-
-        console.log(
-          "STOP LISTENER ERROR:",
-          event.error
-        );
-
-        stopListeningActive =
-          false;
-      };
-
-
-    stopRecognition.onend =
-      () => {
-
-        stopListeningActive =
-          false;
-
-
-        // JARVISがまだ話しているなら
-        // ストップ監視を再開
-
-        if (speaking) {
-
-          setTimeout(
-            () => {
-
-              startStopRecognition();
-
-            },
-            300
-          );
-        }
-      };
-
-
-    stopRecognition.start();
-
-    stopListeningActive =
-      true;
-
-
-    console.log(
-      "STOP LISTENER START"
-    );
-
-  } catch (error) {
-
-    console.log(
-      "STOP LISTENER START ERROR:",
-      error.message
-    );
-
-    stopListeningActive =
-      false;
-  }
-}
-
-
-// ========================================
-// 「ストップ」専用認識停止
-// ========================================
-
-function stopStopRecognition() {
-
-  if (!stopRecognition) {
-    return;
-  }
-
-
-  try {
-
-    stopRecognition.stop();
-
-  } catch (_) {}
-
-
-  stopRecognition =
-    null;
-
-  stopListeningActive =
-    false;
-}
-
-
-// ========================================
-// 通常音声認識
+// 音声認識作成
 // ========================================
 
 function createRecognition() {
@@ -430,11 +254,15 @@ function createRecognition() {
   r.lang =
     "ja-JP";
 
+  // 連続認識
+
   r.continuous =
-    false;
+    true;
+
+  // ストップ判定を早くする
 
   r.interimResults =
-    false;
+    true;
 
   r.maxAlternatives =
     1;
@@ -447,163 +275,83 @@ function createRecognition() {
   r.onresult =
     async (event) => {
 
-      listening =
-        false;
-
-
-      const text =
-        event.results[0][0]
-          .transcript
-          .trim();
-
-
-      console.log(
-        "USER:",
-        text
-      );
-
-
-      // 念のためストップ命令を確認
-
-      if (
-        isStopCommand(text)
+      for (
+        let i = event.resultIndex;
+        i < event.results.length;
+        i++
       ) {
 
-        stopSpeaking();
+        const result =
+          event.results[i];
 
-        return;
-      }
-
-
-      message.textContent =
-        `「${text}」`;
-
-
-      if (!text) {
-
-        restartListening();
-
-        return;
-      }
+        const text =
+          result[0]
+            .transcript
+            .trim();
 
 
-      statusText.textContent =
-        "JARVISが考えています...";
-
-
-      try {
-
-        const response =
-          await fetch(
-            WORKER_URL,
-            {
-              method: "POST",
-
-              headers: {
-                "Content-Type":
-                  "application/json"
-              },
-
-              body:
-                JSON.stringify({
-                  text: text
-                })
-            }
-          );
-
-
-        const data =
-          await response.json();
+        if (!text) {
+          continue;
+        }
 
 
         console.log(
-          "JARVIS RESPONSE:",
-          data
+          "VOICE:",
+          text,
+          "FINAL:",
+          result.isFinal,
+          "SPEAKING:",
+          speaking
         );
 
 
-        if (!response.ok) {
+        // ==================================
+        // JARVISが話している間
+        // 「ストップ」だけを見る
+        // ==================================
 
-          const detail =
-            data.detail
-              ? JSON.stringify(
-                  data.detail,
-                  null,
-                  2
-                )
-              : "";
+        if (speaking) {
+
+          if (
+            isStopCommand(text)
+          ) {
+
+            stopSpeaking();
+          }
 
 
-          throw new Error(
-            (
-              data.error ||
-              `HTTP ${response.status}`
-            ) +
-            (
-              detail
-                ? "\n" + detail
-                : ""
-            )
-          );
+          // JARVIS自身の声などは無視
+
+          continue;
         }
 
 
-        const reply =
-          data.reply ||
-          "回答を取得できませんでした。";
-
-
-        message.textContent =
-          reply;
-
-
         // ==================================
-        // ElevenLabs音声
+        // 通常会話
         // ==================================
+
+        if (!result.isFinal) {
+          continue;
+        }
+
+
+        // ストップ命令
 
         if (
-          data.audio &&
-          typeof data.audio ===
-            "string"
+          isStopCommand(text)
         ) {
 
-          await playAudioWithWebAudio(
-            data.audio
-          );
+          stopSpeaking();
 
-        } else {
-
-          statusText.textContent =
-            "音声データなし";
-
-
-          message.textContent =
-            reply +
-            "\n\n【ElevenLabs音声なし】";
-
-
-          restartListening();
+          continue;
         }
 
 
-      } catch (error) {
-
-        console.error(
-          "JARVIS ERROR:",
-          error
-        );
-
-
         message.textContent =
-          "接続エラー：\n" +
-          error.message;
+          `「${text}」`;
 
 
-        statusText.textContent =
-          "接続エラー";
-
-
-        restartListening();
+        await sendToJarvis(text);
       }
     };
 
@@ -615,20 +363,24 @@ function createRecognition() {
   r.onerror =
     (event) => {
 
-      listening =
-        false;
-
-
       console.log(
-        "SpeechRecognition ERROR:",
+        "SPEECH ERROR:",
         event.error
       );
+
+
+      listening =
+        false;
 
 
       if (
         event.error ===
         "not-allowed"
       ) {
+
+        shouldListen =
+          false;
+
 
         statusText.textContent =
           "マイク許可が必要です";
@@ -644,6 +396,7 @@ function createRecognition() {
             "🎙️ 話す";
         }
 
+
         return;
       }
 
@@ -657,14 +410,10 @@ function createRecognition() {
       }
 
 
-      if (!speaking) {
+      if (shouldListen) {
 
-        statusText.textContent =
-          "音声入力エラー";
+        restartRecognition();
       }
-
-
-      restartListening();
     };
 
 
@@ -679,19 +428,15 @@ function createRecognition() {
         false;
 
 
-      if (talkButton) {
-
-        if (!speaking) {
-
-          talkButton.textContent =
-            "🎙️ 話す";
-        }
-      }
-
-
       console.log(
-        "SpeechRecognition END"
+        "SPEECH END"
       );
+
+
+      if (shouldListen) {
+
+        restartRecognition();
+      }
     };
 
 
@@ -700,10 +445,10 @@ function createRecognition() {
 
 
 // ========================================
-// マイク開始
+// 音声認識開始
 // ========================================
 
-async function startListening() {
+function startRecognition() {
 
   if (!SpeechRecognition) {
 
@@ -717,43 +462,34 @@ async function startListening() {
   }
 
 
-  if (
-    listening ||
-    starting ||
-    speaking
-  ) {
+  if (listening) {
+    return;
+  }
 
+
+  if (restarting) {
     return;
   }
 
 
   try {
 
-    starting =
-      true;
-
-
-    await unlockAudio();
-
-
-    recognition =
-      createRecognition();
-
-
     if (!recognition) {
 
-      throw new Error(
-        "音声認識を作成できません"
-      );
+      recognition =
+        createRecognition();
     }
 
 
+    if (!recognition) {
+      return;
+    }
+
+
+    recognition.start();
+
     listening =
       true;
-
-
-    message.textContent =
-      "お話しください";
 
 
     statusText.textContent =
@@ -767,71 +503,209 @@ async function startListening() {
     }
 
 
-    recognition.start();
-
-
     console.log(
-      "MIC START"
+      "RECOGNITION START"
     );
 
 
   } catch (error) {
 
-    console.error(
-      "MIC START ERROR:",
-      error
+    console.log(
+      "RECOGNITION START ERROR:",
+      error.message
     );
 
 
     listening =
-      false;
-
-
-    if (talkButton) {
-
-      talkButton.textContent =
-        "🎙️ 話す";
-    }
-
-
-    statusText.textContent =
-      "待機中";
-
-  } finally {
-
-    starting =
       false;
   }
 }
 
 
 // ========================================
-// 自動再開
+// 音声認識再起動
 // ========================================
 
-function restartListening() {
+function restartRecognition() {
 
-  if (!conversationStarted) {
+  if (!shouldListen) {
     return;
   }
 
 
-  if (speaking) {
+  if (restarting) {
     return;
   }
+
+
+  restarting =
+    true;
 
 
   setTimeout(
     () => {
 
-      if (!speaking) {
+      restarting =
+        false;
 
-        startListening();
+
+      if (
+        shouldListen &&
+        !listening
+      ) {
+
+        // 認識オブジェクトを作り直す
+
+        recognition =
+          createRecognition();
+
+
+        startRecognition();
       }
 
     },
-    1000
+    500
   );
+}
+
+
+// ========================================
+// JARVISへ送信
+// ========================================
+
+async function sendToJarvis(text) {
+
+  if (thinking) {
+    return;
+  }
+
+
+  thinking =
+    true;
+
+
+  statusText.textContent =
+    "JARVISが考えています...";
+
+
+  try {
+
+    const response =
+      await fetch(
+        WORKER_URL,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body:
+            JSON.stringify({
+              text: text
+            })
+        }
+      );
+
+
+    const data =
+      await response.json();
+
+
+    console.log(
+      "JARVIS RESPONSE:",
+      data
+    );
+
+
+    if (!response.ok) {
+
+      const detail =
+        data.detail
+          ? JSON.stringify(
+              data.detail,
+              null,
+              2
+            )
+          : "";
+
+
+      throw new Error(
+        (
+          data.error ||
+          `HTTP ${response.status}`
+        ) +
+        (
+          detail
+            ? "\n" + detail
+            : ""
+        )
+      );
+    }
+
+
+    const reply =
+      data.reply ||
+      "回答を取得できませんでした。";
+
+
+    message.textContent =
+      reply;
+
+
+    // ====================================
+    // ElevenLabs
+    // ====================================
+
+    if (
+      data.audio &&
+      typeof data.audio ===
+        "string"
+    ) {
+
+      await playAudioWithWebAudio(
+        data.audio
+      );
+
+    } else {
+
+      statusText.textContent =
+        "音声データなし";
+    }
+
+
+  } catch (error) {
+
+    console.error(
+      "JARVIS ERROR:",
+      error
+    );
+
+
+    message.textContent =
+      "接続エラー：\n" +
+      error.message;
+
+
+    statusText.textContent =
+      "接続エラー";
+  }
+
+
+  thinking =
+    false;
+
+
+  // 音声認識は常時維持
+
+  if (
+    shouldListen &&
+    !listening
+  ) {
+
+    startRecognition();
+  }
 }
 
 
@@ -848,8 +722,14 @@ if (talkButton) {
       conversationStarted =
         true;
 
+      shouldListen =
+        true;
 
-      await startListening();
+
+      await unlockAudio();
+
+
+      startRecognition();
     }
   );
 }
@@ -879,7 +759,7 @@ async function playAudioWithWebAudio(
 
 
     // ------------------------------------
-    // Base64 → バイナリ
+    // Base64 → Uint8Array
     // ------------------------------------
 
     const binary =
@@ -932,9 +812,7 @@ async function playAudioWithWebAudio(
     if (currentSource) {
 
       try {
-
         currentSource.stop();
-
       } catch (_) {}
 
       currentSource =
@@ -980,11 +858,8 @@ async function playAudioWithWebAudio(
       true;
 
 
-    // ====================================
-    // ストップ監視開始
-    // ====================================
-
-    startStopRecognition();
+    statusText.textContent =
+      "🔊 JARVISが話しています";
 
 
     // ====================================
@@ -994,27 +869,36 @@ async function playAudioWithWebAudio(
     source.onended =
       () => {
 
-        currentSource =
-          null;
+        if (
+          currentSource ===
+          source
+        ) {
+
+          currentSource =
+            null;
+        }
 
 
         speaking =
           false;
 
 
-        stopStopRecognition();
-
-
         statusText.textContent =
-          "待機中";
+          "🎙️ 聞いています...";
 
 
         console.log(
-          "JARVIS音声終了"
+          "JARVIS AUDIO END"
         );
 
 
-        restartListening();
+        if (
+          shouldListen &&
+          !listening
+        ) {
+
+          startRecognition();
+        }
       };
 
 
@@ -1022,31 +906,24 @@ async function playAudioWithWebAudio(
     // 再生
     // ------------------------------------
 
-    statusText.textContent =
-      "🔊 JARVISが話しています";
-
-
     source.start(0);
 
 
     console.log(
-      "WEB AUDIO PLAY SUCCESS"
+      "AUDIO PLAY START"
     );
 
 
   } catch (error) {
 
     console.error(
-      "WEB AUDIO MP3 ERROR:",
+      "AUDIO ERROR:",
       error
     );
 
 
     speaking =
       false;
-
-
-    stopStopRecognition();
 
 
     statusText.textContent =
@@ -1059,7 +936,13 @@ async function playAudioWithWebAudio(
       error.message;
 
 
-    restartListening();
+    if (
+      shouldListen &&
+      !listening
+    ) {
+
+      startRecognition();
+    }
   }
 }
 
