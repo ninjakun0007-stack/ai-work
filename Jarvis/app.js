@@ -14,7 +14,8 @@ let recognition = null;
 let listening = false;
 let audioContext = null;
 let currentSource = null;
-let restarting = false;
+let starting = false;
+let autoListen = true;
 
 
 // ========================================
@@ -57,15 +58,10 @@ async function unlockAudio() {
       await ctx.resume();
     }
 
-    console.log(
-      "AudioContext:",
-      ctx.state
-    );
-
   } catch (error) {
 
     console.log(
-      "Audio unlock error:",
+      "Audio unlock:",
       error.message
     );
   }
@@ -109,13 +105,16 @@ async function testWebAudio() {
       0.3;
 
     oscillator.connect(gain);
-    gain.connect(ctx.destination);
 
-    const start =
-      ctx.currentTime;
+    gain.connect(
+      ctx.destination
+    );
 
-    oscillator.start(start);
-    oscillator.stop(start + 0.5);
+    oscillator.start();
+
+    oscillator.stop(
+      ctx.currentTime + 0.5
+    );
 
     oscillator.onended =
       () => {
@@ -130,7 +129,7 @@ async function testWebAudio() {
   } catch (error) {
 
     console.error(
-      "WEB AUDIO TEST ERROR:",
+      "AUDIO TEST ERROR:",
       error
     );
 
@@ -158,139 +157,36 @@ if (audioTestButton) {
 
 
 // ========================================
-// 音声認識を開始する関数
+// SpeechRecognitionを新規作成
 // ========================================
 
-async function startListening() {
+function createRecognition() {
 
-  if (!recognition) {
-    return;
+  if (!SpeechRecognition) {
+    return null;
   }
 
-  if (listening) {
-    return;
-  }
-
-  if (restarting) {
-    return;
-  }
-
-  try {
-
-    restarting = true;
-
-    await unlockAudio();
-
-    message.textContent =
-      "お話しください";
-
-    statusText.textContent =
-      "🎙️ 聞いています...";
-
-    listening = true;
-
-    if (talkButton) {
-      talkButton.textContent =
-        "🔴 聞いています";
-    }
-
-    recognition.start();
-
-  } catch (error) {
-
-    console.log(
-      "音声認識開始:",
-      error.message
-    );
-
-    listening = false;
-
-    if (
-      error.name ===
-      "InvalidStateError"
-    ) {
-
-      console.log(
-        "音声認識はすでに開始されています"
-      );
-
-    } else {
-
-      if (talkButton) {
-        talkButton.textContent =
-          "🎙️ 話す";
-      }
-
-      statusText.textContent =
-        "待機中";
-    }
-
-  } finally {
-
-    restarting = false;
-  }
-}
-
-
-// ========================================
-// 音声認識
-// ========================================
-
-if (!SpeechRecognition) {
-
-  message.textContent =
-    "このSafariでは音声入力を利用できません";
-
-  statusText.textContent =
-    "音声認識非対応";
-
-  if (talkButton) {
-    talkButton.disabled = true;
-  }
-
-} else {
-
-  recognition =
+  const r =
     new SpeechRecognition();
 
-  recognition.lang =
+  r.lang =
     "ja-JP";
 
-  recognition.continuous =
+  r.continuous =
     false;
 
-  recognition.interimResults =
+  r.interimResults =
     false;
 
-  recognition.maxAlternatives =
+  r.maxAlternatives =
     1;
 
 
   // ======================================
-  // 話すボタン
+  // 音声結果
   // ======================================
 
-  if (talkButton) {
-
-    talkButton.addEventListener(
-      "click",
-      async () => {
-
-        if (listening) {
-          return;
-        }
-
-        await startListening();
-      }
-    );
-  }
-
-
-  // ======================================
-  // 認識結果
-  // ======================================
-
-  recognition.onresult =
+  r.onresult =
     async (event) => {
 
       listening = false;
@@ -300,17 +196,17 @@ if (!SpeechRecognition) {
           .transcript
           .trim();
 
+      console.log(
+        "USER:",
+        text
+      );
+
       message.textContent =
         `「${text}」`;
 
       if (!text) {
 
-        setTimeout(
-          () => {
-            startListening();
-          },
-          500
-        );
+        scheduleAutoListen();
 
         return;
       }
@@ -385,7 +281,7 @@ if (!SpeechRecognition) {
 
 
         // ==================================
-        // ElevenLabs音声あり
+        // ElevenLabs音声
         // ==================================
 
         if (
@@ -400,7 +296,6 @@ if (!SpeechRecognition) {
             data.audio
           );
 
-
         } else {
 
           statusText.textContent =
@@ -410,13 +305,7 @@ if (!SpeechRecognition) {
             reply +
             "\n\n【ElevenLabs音声なし】";
 
-          // 音声がない場合も再び聞く
-          setTimeout(
-            () => {
-              startListening();
-            },
-            700
-          );
+          scheduleAutoListen();
         }
 
 
@@ -434,13 +323,7 @@ if (!SpeechRecognition) {
         statusText.textContent =
           "接続エラー";
 
-        // エラー後も再び聞く
-        setTimeout(
-          () => {
-            startListening();
-          },
-          1500
-        );
+        scheduleAutoListen();
       }
     };
 
@@ -449,19 +332,35 @@ if (!SpeechRecognition) {
   // 音声認識エラー
   // ======================================
 
-  recognition.onerror =
+  r.onerror =
     (event) => {
 
       listening = false;
 
-      console.error(
-        "SpeechRecognition ERROR:",
+      console.log(
+        "SpeechRecognition error:",
         event.error
       );
 
+      if (
+        event.error ===
+        "not-allowed"
+      ) {
 
-      // ユーザーが明示的に停止した場合以外
-      // 自動的に再開する
+        statusText.textContent =
+          "マイク許可が必要です";
+
+        message.textContent =
+          "iPhoneのマイク許可を確認してください";
+
+        if (talkButton) {
+          talkButton.textContent =
+            "🎙️ 話す";
+        }
+
+        return;
+      }
+
 
       if (
         event.error ===
@@ -480,9 +379,6 @@ if (!SpeechRecognition) {
       }
 
 
-      message.textContent =
-        "もう一度お話しください";
-
       statusText.textContent =
         event.error ||
         "音声入力エラー";
@@ -492,13 +388,7 @@ if (!SpeechRecognition) {
           "🎙️ 話す";
       }
 
-
-      setTimeout(
-        () => {
-          startListening();
-        },
-        1000
-      );
+      scheduleAutoListen();
     };
 
 
@@ -506,7 +396,7 @@ if (!SpeechRecognition) {
   // 音声認識終了
   // ======================================
 
-  recognition.onend =
+  r.onend =
     () => {
 
       listening = false;
@@ -520,12 +410,148 @@ if (!SpeechRecognition) {
         "SpeechRecognition ended"
       );
     };
+
+
+  return r;
 }
 
 
 // ========================================
-// ElevenLabs MP3
-// Web Audio APIで再生
+// 音声認識開始
+// ========================================
+
+async function startListening() {
+
+  if (!SpeechRecognition) {
+
+    message.textContent =
+      "このSafariでは音声入力を利用できません";
+
+    statusText.textContent =
+      "音声認識非対応";
+
+    return;
+  }
+
+
+  if (listening || starting) {
+    return;
+  }
+
+
+  try {
+
+    starting = true;
+
+    await unlockAudio();
+
+
+    recognition =
+      createRecognition();
+
+
+    if (!recognition) {
+      throw new Error(
+        "音声認識を作成できません"
+      );
+    }
+
+
+    listening = true;
+
+
+    message.textContent =
+      "お話しください";
+
+
+    statusText.textContent =
+      "🎙️ 聞いています...";
+
+
+    if (talkButton) {
+
+      talkButton.textContent =
+        "🔴 聞いています";
+    }
+
+
+    recognition.start();
+
+
+    console.log(
+      "SpeechRecognition START"
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "START LISTENING ERROR:",
+      error
+    );
+
+    listening = false;
+
+
+    if (talkButton) {
+
+      talkButton.textContent =
+        "🎙️ 話す";
+    }
+
+
+    statusText.textContent =
+      "待機中";
+
+
+  } finally {
+
+    starting = false;
+  }
+}
+
+
+// ========================================
+// 自動再開
+// ========================================
+
+function scheduleAutoListen() {
+
+  if (!autoListen) {
+    return;
+  }
+
+  setTimeout(
+    () => {
+
+      startListening();
+
+    },
+    1200
+  );
+}
+
+
+// ========================================
+// 話すボタン
+// ========================================
+
+if (talkButton) {
+
+  talkButton.addEventListener(
+    "click",
+    async () => {
+
+      autoListen = true;
+
+      await startListening();
+    }
+  );
+}
+
+
+// ========================================
+// ElevenLabs音声再生
 // ========================================
 
 async function playAudioWithWebAudio(
@@ -550,7 +576,7 @@ async function playAudioWithWebAudio(
 
 
     // ------------------------------------
-    // Base64 → バイナリ
+    // Base64 → Uint8Array
     // ------------------------------------
 
     const binary =
@@ -647,7 +673,6 @@ async function playAudioWithWebAudio(
       gain
     );
 
-
     gain.connect(
       ctx.destination
     );
@@ -676,24 +701,8 @@ async function playAudioWithWebAudio(
         );
 
 
-        // ==================================
-        // 重要
-        // JARVISが話し終わったら
-        // 自動的に再び聞く
-        // ==================================
-
-        setTimeout(
-          () => {
-
-            console.log(
-              "JARVIS自動再開"
-            );
-
-            startListening();
-
-          },
-          700
-        );
+        // 音声終了後に自動再開
+        scheduleAutoListen();
       };
 
 
@@ -731,22 +740,13 @@ async function playAudioWithWebAudio(
       error.message;
 
 
-    // 音声再生に失敗しても
-    // しばらくしたら再び聞く
-
-    setTimeout(
-      () => {
-        startListening();
-      },
-      1500
-    );
+    scheduleAutoListen();
   }
 }
 
 
 // ========================================
 // JARVIS起動時
-// 自動マイク開始
 // ========================================
 
 window.addEventListener(
@@ -756,48 +756,23 @@ window.addEventListener(
     setTimeout(
       () => {
 
-        if (!recognition) {
+        if (!SpeechRecognition) {
           return;
         }
 
 
-        console.log(
-          "JARVIS自動起動"
-        );
+        message.textContent =
+          "JARVIS起動。お話しください";
 
 
-        try {
+        statusText.textContent =
+          "🎙️ 起動しています...";
 
-          message.textContent =
-            "JARVIS起動。お話しください";
 
-          statusText.textContent =
-            "🎙️ 聞いています...";
+        autoListen = true;
 
-          listening = false;
 
-          startListening();
-
-        } catch (error) {
-
-          console.log(
-            "自動マイク開始:",
-            error.message
-          );
-
-          listening = false;
-
-          message.textContent =
-            "🎙️ 話すボタンを押してください";
-
-          statusText.textContent =
-            "待機中";
-
-          if (talkButton) {
-            talkButton.textContent =
-              "🎙️ 話す";
-          }
-        }
+        startListening();
 
       },
       1000
