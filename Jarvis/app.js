@@ -11,13 +11,17 @@ const SpeechRecognition =
   window.webkitSpeechRecognition;
 
 let recognition = null;
+let stopRecognition = null;
+
 let audioContext = null;
 let currentSource = null;
 
 let listening = false;
-let conversationStarted = false;
-let starting = false;
 let speaking = false;
+let conversationStarted = false;
+
+let starting = false;
+let stopListeningActive = false;
 
 
 // ========================================
@@ -31,12 +35,14 @@ function getAudioContext() {
     window.webkitAudioContext;
 
   if (!AudioContext) {
+
     throw new Error(
       "Web Audio APIに対応していません"
     );
   }
 
   if (!audioContext) {
+
     audioContext =
       new AudioContext();
   }
@@ -56,7 +62,11 @@ async function unlockAudio() {
     const ctx =
       getAudioContext();
 
-    if (ctx.state === "suspended") {
+    if (
+      ctx.state ===
+      "suspended"
+    ) {
+
       await ctx.resume();
     }
 
@@ -104,7 +114,9 @@ async function testWebAudio() {
     gain.gain.value =
       0.3;
 
-    oscillator.connect(gain);
+    oscillator.connect(
+      gain
+    );
 
     gain.connect(
       ctx.destination
@@ -113,7 +125,8 @@ async function testWebAudio() {
     oscillator.start();
 
     oscillator.stop(
-      ctx.currentTime + 0.5
+      ctx.currentTime +
+      0.5
     );
 
     oscillator.onended =
@@ -143,10 +156,6 @@ async function testWebAudio() {
 }
 
 
-// ========================================
-// 音声テストボタン
-// ========================================
-
 if (audioTestButton) {
 
   audioTestButton.addEventListener(
@@ -157,17 +166,20 @@ if (audioTestButton) {
 
 
 // ========================================
-// ストップ命令判定
+// ストップ命令
 // ========================================
 
 function isStopCommand(text) {
 
-  const normalized =
+  const value =
     text
       .trim()
-      .replace(/[！!。．、,]/g, "");
+      .replace(
+        /[！!。．、,？?]/g,
+        ""
+      );
 
-  const stopWords = [
+  const commands = [
 
     "ストップ",
     "止まって",
@@ -184,28 +196,30 @@ function isStopCommand(text) {
 
   ];
 
-  return stopWords.some(
-    word =>
-      normalized.includes(word)
+  return commands.some(
+    command =>
+      value.includes(command)
   );
 }
 
 
 // ========================================
-// JARVIS音声を即停止
+// JARVIS音声停止
 // ========================================
 
 function stopSpeaking() {
 
   console.log(
-    "JARVIS音声を停止します"
+    "STOP COMMAND RECEIVED"
   );
 
 
   if (currentSource) {
 
     try {
+
       currentSource.stop();
+
     } catch (_) {}
 
     currentSource =
@@ -220,12 +234,16 @@ function stopSpeaking() {
   statusText.textContent =
     "🔇 停止しました";
 
-
   message.textContent =
-    "音声を停止しました";
+    "JARVISの音声を停止しました";
 
 
-  // 少し待ってから再び聞く
+  // ストップ監視を停止
+
+  stopStopRecognition();
+
+
+  // その後もう一度聞く
 
   if (conversationStarted) {
 
@@ -235,14 +253,167 @@ function stopSpeaking() {
         startListening();
 
       },
-      500
+      700
     );
   }
 }
 
 
 // ========================================
-// 音声認識作成
+// 「ストップ」専用音声認識開始
+// ========================================
+
+function startStopRecognition() {
+
+  if (!SpeechRecognition) {
+    return;
+  }
+
+  if (stopListeningActive) {
+    return;
+  }
+
+  try {
+
+    stopRecognition =
+      new SpeechRecognition();
+
+    stopRecognition.lang =
+      "ja-JP";
+
+    stopRecognition.continuous =
+      true;
+
+    stopRecognition.interimResults =
+      true;
+
+    stopRecognition.maxAlternatives =
+      1;
+
+
+    stopRecognition.onresult =
+      (event) => {
+
+        for (
+          let i =
+            event.resultIndex;
+          i <
+            event.results.length;
+          i++
+        ) {
+
+          const text =
+            event.results[i][0]
+              .transcript
+              .trim();
+
+
+          console.log(
+            "STOP LISTENER:",
+            text
+          );
+
+
+          if (
+            isStopCommand(text)
+          ) {
+
+            stopSpeaking();
+
+            return;
+          }
+        }
+      };
+
+
+    stopRecognition.onerror =
+      (event) => {
+
+        console.log(
+          "STOP LISTENER ERROR:",
+          event.error
+        );
+
+        stopListeningActive =
+          false;
+      };
+
+
+    stopRecognition.onend =
+      () => {
+
+        stopListeningActive =
+          false;
+
+
+        // JARVISがまだ話しているなら
+        // ストップ監視を再開
+
+        if (speaking) {
+
+          setTimeout(
+            () => {
+
+              startStopRecognition();
+
+            },
+            300
+          );
+        }
+      };
+
+
+    stopRecognition.start();
+
+    stopListeningActive =
+      true;
+
+
+    console.log(
+      "STOP LISTENER START"
+    );
+
+  } catch (error) {
+
+    console.log(
+      "STOP LISTENER START ERROR:",
+      error.message
+    );
+
+    stopListeningActive =
+      false;
+  }
+}
+
+
+// ========================================
+// 「ストップ」専用認識停止
+// ========================================
+
+function stopStopRecognition() {
+
+  if (!stopRecognition) {
+    return;
+  }
+
+
+  try {
+
+    stopRecognition.stop();
+
+  } catch (_) {}
+
+
+  stopRecognition =
+    null;
+
+  stopListeningActive =
+    false;
+}
+
+
+// ========================================
+// 通常音声認識
 // ========================================
 
 function createRecognition() {
@@ -292,23 +463,13 @@ function createRecognition() {
       );
 
 
-      // ====================================
-      // 話している途中のストップ命令
-      // ====================================
+      // 念のためストップ命令を確認
 
       if (
-        speaking &&
         isStopCommand(text)
       ) {
 
-        console.log(
-          "STOP COMMAND:",
-          text
-        );
-
-
         stopSpeaking();
-
 
         return;
       }
@@ -325,10 +486,6 @@ function createRecognition() {
         return;
       }
 
-
-      // ====================================
-      // 通常の会話
-      // ====================================
 
       statusText.textContent =
         "JARVISが考えています...";
@@ -406,13 +563,13 @@ function createRecognition() {
 
         if (
           data.audio &&
-          typeof data.audio === "string"
+          typeof data.audio ===
+            "string"
         ) {
 
           await playAudioWithWebAudio(
             data.audio
           );
-
 
         } else {
 
@@ -487,7 +644,6 @@ function createRecognition() {
             "🎙️ 話す";
         }
 
-
         return;
       }
 
@@ -496,13 +652,6 @@ function createRecognition() {
         event.error ===
         "aborted"
       ) {
-
-        if (!speaking) {
-
-          statusText.textContent =
-            "待機中";
-        }
-
 
         return;
       }
@@ -515,10 +664,7 @@ function createRecognition() {
       }
 
 
-      if (conversationStarted) {
-
-        restartListening();
-      }
+      restartListening();
     };
 
 
@@ -571,15 +717,12 @@ async function startListening() {
   }
 
 
-  if (listening || starting) {
-    return;
-  }
+  if (
+    listening ||
+    starting ||
+    speaking
+  ) {
 
-
-  // JARVISが話している間は
-  // 通常の会話認識を開始しない
-
-  if (speaking) {
     return;
   }
 
@@ -654,7 +797,6 @@ async function startListening() {
     statusText.textContent =
       "待機中";
 
-
   } finally {
 
     starting =
@@ -723,17 +865,14 @@ async function playAudioWithWebAudio(
 
   try {
 
-    console.log(
-      "ElevenLabs audio length:",
-      base64Audio.length
-    );
-
-
     const ctx =
       getAudioContext();
 
 
-    if (ctx.state === "suspended") {
+    if (
+      ctx.state ===
+      "suspended"
+    ) {
 
       await ctx.resume();
     }
@@ -786,13 +925,6 @@ async function playAudioWithWebAudio(
       );
 
 
-    console.log(
-      "Audio decoded:",
-      audioBuffer.duration,
-      "seconds"
-    );
-
-
     // ------------------------------------
     // 前の音声停止
     // ------------------------------------
@@ -800,7 +932,9 @@ async function playAudioWithWebAudio(
     if (currentSource) {
 
       try {
+
         currentSource.stop();
+
       } catch (_) {}
 
       currentSource =
@@ -847,6 +981,13 @@ async function playAudioWithWebAudio(
 
 
     // ====================================
+    // ストップ監視開始
+    // ====================================
+
+    startStopRecognition();
+
+
+    // ====================================
     // 音声終了
     // ====================================
 
@@ -861,6 +1002,9 @@ async function playAudioWithWebAudio(
           false;
 
 
+        stopStopRecognition();
+
+
         statusText.textContent =
           "待機中";
 
@@ -869,8 +1013,6 @@ async function playAudioWithWebAudio(
           "JARVIS音声終了"
         );
 
-
-        // 音声終了後、自動で聞く
 
         restartListening();
       };
@@ -904,6 +1046,9 @@ async function playAudioWithWebAudio(
       false;
 
 
+    stopStopRecognition();
+
+
     statusText.textContent =
       "音声再生エラー";
 
@@ -920,7 +1065,7 @@ async function playAudioWithWebAudio(
 
 
 // ========================================
-// JARVIS初期画面
+// 初期画面
 // ========================================
 
 window.addEventListener(
