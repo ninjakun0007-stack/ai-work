@@ -9,6 +9,61 @@ const SpeechRecognition =
   window.SpeechRecognition ||
   window.webkitSpeechRecognition;
 
+let audioPlayer = null;
+let audioContext = null;
+let audioUnlocked = false;
+
+
+// ========================================
+// iPhone Safari 音声再生準備
+// ========================================
+
+async function unlockAudio() {
+
+  try {
+
+    if (!audioContext) {
+
+      const AudioContextClass =
+        window.AudioContext ||
+        window.webkitAudioContext;
+
+      if (AudioContextClass) {
+        audioContext =
+          new AudioContextClass();
+      }
+    }
+
+    if (
+      audioContext &&
+      audioContext.state === "suspended"
+    ) {
+
+      await audioContext.resume();
+    }
+
+    audioUnlocked = true;
+
+    console.log(
+      "Audio unlocked:",
+      audioContext
+        ? audioContext.state
+        : "no AudioContext"
+    );
+
+  } catch (error) {
+
+    console.error(
+      "Audio unlock error:",
+      error
+    );
+  }
+}
+
+
+// ========================================
+// 音声認識非対応
+// ========================================
 
 if (!SpeechRecognition) {
 
@@ -37,20 +92,24 @@ if (!SpeechRecognition) {
   recognition.maxAlternatives =
     1;
 
-
   let listening =
     false;
 
 
-  // ========================================
+  // ======================================
   // 話すボタン
-  // ========================================
+  // ======================================
 
   talkButton.addEventListener(
     "click",
-    () => {
+    async () => {
 
       if (listening) return;
+
+
+      // iPhone Safariで音声再生を解除
+      await unlockAudio();
+
 
       try {
 
@@ -87,9 +146,9 @@ if (!SpeechRecognition) {
   );
 
 
-  // ========================================
+  // ======================================
   // 音声認識結果
-  // ========================================
+  // ======================================
 
   recognition.onresult =
     async (event) => {
@@ -132,7 +191,6 @@ if (!SpeechRecognition) {
           );
 
 
-        // JSONとして受信
         const data =
           await response.json();
 
@@ -174,14 +232,10 @@ if (!SpeechRecognition) {
           }
 
 
-          const errorMessage =
-            data.error ||
-            `HTTP ${response.status}`;
-
-
           message.textContent =
             "エラー：" +
-            errorMessage +
+            (data.error ||
+              `HTTP ${response.status}`) +
             (detail
               ? "\n\n詳細：" +
                 detail
@@ -197,7 +251,7 @@ if (!SpeechRecognition) {
 
 
         // ==================================
-        // OpenAI回答
+        // JARVIS回答
         // ==================================
 
         const reply =
@@ -233,7 +287,6 @@ if (!SpeechRecognition) {
           statusText.textContent =
             "音声データなし";
 
-
           message.textContent =
             reply +
             "\n\n【音声データがありません】";
@@ -259,9 +312,9 @@ if (!SpeechRecognition) {
     };
 
 
-  // ========================================
+  // ======================================
   // 音声認識エラー
-  // ========================================
+  // ======================================
 
   recognition.onerror =
     (event) => {
@@ -281,9 +334,9 @@ if (!SpeechRecognition) {
     };
 
 
-  // ========================================
+  // ======================================
   // 音声認識終了
-  // ========================================
+  // ======================================
 
   recognition.onend =
     () => {
@@ -307,6 +360,19 @@ async function playElevenLabsAudio(
 
   try {
 
+    // 前の音声を停止
+    if (audioPlayer) {
+
+      try {
+        audioPlayer.pause();
+      } catch (_) {}
+
+      audioPlayer =
+        null;
+    }
+
+
+    // Base64 → バイナリ
     const binaryString =
       atob(base64Audio);
 
@@ -330,6 +396,7 @@ async function playElevenLabsAudio(
     }
 
 
+    // MP3
     const blob =
       new Blob(
         [bytes],
@@ -344,9 +411,20 @@ async function playElevenLabsAudio(
       URL.createObjectURL(blob);
 
 
+    // Audio生成
     const audio =
-      new Audio(audioUrl);
+      new Audio();
 
+
+    audioPlayer =
+      audio;
+
+
+    audio.src =
+      audioUrl;
+
+    audio.preload =
+      "auto";
 
     audio.volume =
       1.0;
@@ -358,6 +436,9 @@ async function playElevenLabsAudio(
         URL.revokeObjectURL(
           audioUrl
         );
+
+        audioPlayer =
+          null;
 
         statusText.textContent =
           "待機中";
@@ -371,12 +452,37 @@ async function playElevenLabsAudio(
           audioUrl
         );
 
+        audioPlayer =
+          null;
+
         statusText.textContent =
           "音声再生エラー";
       };
 
 
+    // ====================================
+    // AudioContextを再開
+    // ====================================
+
+    if (
+      audioContext &&
+      audioContext.state ===
+        "suspended"
+    ) {
+
+      await audioContext.resume();
+    }
+
+
+    // ====================================
+    // 再生
+    // ====================================
+
     await audio.play();
+
+
+    statusText.textContent =
+      "🔊 JARVISが話しています";
 
 
   } catch (error) {
@@ -389,6 +495,7 @@ async function playElevenLabsAudio(
 
     statusText.textContent =
       "音声再生エラー";
+
 
     message.textContent =
       "音声再生エラー：\n" +
