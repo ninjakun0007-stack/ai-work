@@ -7,33 +7,30 @@ export default {
       "Access-Control-Allow-Headers": "Content-Type"
     };
 
-
     // ========================================
     // OPTIONS
     // ========================================
 
     if (request.method === "OPTIONS") {
-
       return new Response(null, {
         status: 204,
         headers: corsHeaders
       });
     }
 
-
     // ========================================
     // GET
     // ========================================
 
     if (request.method === "GET") {
-
       return new Response(
         JSON.stringify({
           ok: true,
           service: "JARVIS Voice",
           status: "online",
           openai: !!env.OPENAI_API_KEY,
-          elevenlabs: !!env.ELEVENLABS_API_KEY
+          elevenlabs: !!env.ELEVENLABS_API_KEY,
+          job_search: true
         }),
         {
           status: 200,
@@ -46,13 +43,11 @@ export default {
       );
     }
 
-
     // ========================================
     // POST
     // ========================================
 
     if (request.method !== "POST") {
-
       return new Response(
         JSON.stringify({
           error: "POST only"
@@ -68,25 +63,20 @@ export default {
       );
     }
 
-
     try {
 
       const body =
         await request.json();
-
 
       const text =
         typeof body.text === "string"
           ? body.text.trim()
           : "";
 
-
       if (!text) {
-
         return new Response(
           JSON.stringify({
-            error:
-              "textがありません"
+            error: "textがありません"
           }),
           {
             status: 400,
@@ -99,13 +89,11 @@ export default {
         );
       }
 
-
       // ======================================
       // OpenAI API KEY
       // ======================================
 
       if (!env.OPENAI_API_KEY) {
-
         return new Response(
           JSON.stringify({
             error:
@@ -122,9 +110,90 @@ export default {
         );
       }
 
+      // ======================================
+      // ストップ系命令
+      // ======================================
+
+      const stopWords = [
+        "ストップ",
+        "止まって",
+        "止めて",
+        "停止",
+        "黙って",
+        "静かに",
+        "もういい",
+        "やめて"
+      ];
+
+      const isStop =
+        stopWords.some(
+          word => text.includes(word)
+        );
+
+      if (isStop) {
+
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            reply: "はい、停止します。",
+            audio: null,
+            stop: true
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type":
+                "application/json; charset=UTF-8",
+              ...corsHeaders
+            }
+          }
+        );
+      }
 
       // ======================================
-      // Web検索を使うか判定
+      // 求人検索判定
+      // ======================================
+
+      const jobWords = [
+
+        "仕事を探して",
+        "仕事探して",
+        "求人を探して",
+        "求人探して",
+        "案件を探して",
+        "案件探して",
+        "仕事を検索して",
+        "求人を検索して",
+        "案件を検索して",
+        "仕事を調べて",
+        "求人を調べて",
+        "案件を調べて",
+
+        "Pythonの仕事",
+        "Python案件",
+        "Python求人",
+
+        "プログラミングの仕事",
+        "プログラミング案件",
+
+        "AIの仕事",
+        "AI案件",
+        "AI求人",
+
+        "エンジニアの仕事",
+        "エンジニア求人",
+        "エンジニア案件"
+
+      ];
+
+      const needsJobSearch =
+        jobWords.some(
+          word =>
+            text.includes(word)
+        );
+
+      // ======================================
+      // 一般Web検索判定
       // ======================================
 
       const searchWords = [
@@ -160,13 +229,91 @@ export default {
 
       ];
 
-
       const needsWebSearch =
         searchWords.some(
           word =>
             text.includes(word)
         );
 
+      // ======================================
+      // システム指示
+      // ======================================
+
+      let systemPrompt =
+
+        "あなたはJARVISです。" +
+
+        "日本語で自然に会話してください。" +
+
+        "回答は分かりやすく簡潔にしてください。";
+
+      // ======================================
+      // 求人検索モード
+      // ======================================
+
+      if (needsJobSearch) {
+
+        systemPrompt +=
+
+          "\n\n" +
+
+          "今回は求人・案件検索モードです。" +
+
+          "ユーザーが希望している仕事をWeb検索で実際に探してください。" +
+
+          "Python、AI、プログラミング、Web開発などの案件を優先してください。" +
+
+          "検索結果から、実際に存在する求人・案件だけを紹介してください。" +
+
+          "存在を確認できない求人を作ってはいけません。" +
+
+          "できるだけ新しい情報を優先してください。" +
+
+          "求人サイト、クラウドソーシングサイト、エージェントサイトなどを検索してください。" +
+
+          "検索結果を最大5件程度に整理してください。" +
+
+          "各案件について、可能なら以下を説明してください。" +
+
+          "・案件名" +
+
+          "・仕事内容" +
+
+          "・報酬または給与" +
+
+          "・勤務形態" +
+
+          "・リモート可否" +
+
+          "・必要スキル" +
+
+          "・求人ページを確認できるURL" +
+
+          "最後に、ユーザーに合いそうな案件を1件から3件程度おすすめしてください。" +
+
+          "情報が確認できない項目は『記載なし』としてください。";
+
+      }
+
+      // ======================================
+      // Web検索モード
+      // ======================================
+
+      if (
+        needsWebSearch ||
+        needsJobSearch
+      ) {
+
+        systemPrompt +=
+
+          "\n\n" +
+
+          "最新情報が必要な場合は必ずWeb検索を使用してください。" +
+
+          "検索結果を確認したうえで回答してください。" +
+
+          "Web検索結果が取得できない場合は、推測せず、そのことを明確に伝えてください。";
+      }
 
       // ======================================
       // OpenAI Responses API
@@ -181,18 +328,11 @@ export default {
 
           {
             role: "system",
-
-            content:
-              "あなたはJARVISです。" +
-              "日本語で自然に会話してください。" +
-              "回答は簡潔で分かりやすくしてください。" +
-              "ユーザーが最新情報、現在の情報、天気、ニュース、価格などを尋ねた場合は、Web検索を使用して最新情報を確認してください。" +
-              "Web検索結果が取得できない場合は、推測せず、そのことを明確に伝えてください。"
+            content: systemPrompt
           },
 
           {
             role: "user",
-
             content: text
           }
 
@@ -200,12 +340,14 @@ export default {
 
       };
 
-
       // ======================================
-      // Web検索
+      // Web検索ツール
       // ======================================
 
-      if (needsWebSearch) {
+      if (
+        needsWebSearch ||
+        needsJobSearch
+      ) {
 
         requestBody.tools = [
           {
@@ -215,12 +357,16 @@ export default {
         ];
       }
 
+      console.log(
+        "JOB SEARCH:",
+        needsJobSearch
+      );
 
       console.log(
         "WEB SEARCH:",
-        needsWebSearch
+        needsWebSearch ||
+        needsJobSearch
       );
-
 
       // ======================================
       // OpenAI
@@ -247,10 +393,8 @@ export default {
           }
         );
 
-
       const openaiData =
         await openaiResponse.json();
-
 
       // ======================================
       // OpenAIエラー
@@ -260,11 +404,13 @@ export default {
 
         return new Response(
           JSON.stringify({
+
             error:
               "OpenAI APIエラー",
 
             detail:
               openaiData
+
           }),
           {
             status: 500,
@@ -278,13 +424,11 @@ export default {
         );
       }
 
-
       // ======================================
       // 回答取得
       // ======================================
 
       let reply = "";
-
 
       if (
         typeof openaiData.output_text ===
@@ -294,7 +438,6 @@ export default {
         reply =
           openaiData.output_text.trim();
       }
-
 
       if (
         !reply &&
@@ -337,18 +480,14 @@ export default {
         }
       }
 
-
       reply =
         reply.trim();
-
 
       if (!reply) {
 
         reply =
-          "申し訳ありません。" +
-          "回答を取得できませんでした。";
+          "申し訳ありません。回答を取得できませんでした。";
       }
-
 
       // ======================================
       // ElevenLabs
@@ -364,6 +503,13 @@ export default {
             reply: reply,
 
             audio: null,
+
+            web_search:
+              needsWebSearch ||
+              needsJobSearch,
+
+            job_search:
+              needsJobSearch,
 
             error:
               "ELEVENLABS_API_KEYが設定されていません"
@@ -382,14 +528,12 @@ export default {
         );
       }
 
-
       // ======================================
-      // ElevenLabs Voice
+      // ElevenLabs
       // ======================================
 
       const voiceId =
         "JBFqnCBsd6RMkjVDRZzb";
-
 
       const elevenResponse =
         await fetch(
@@ -439,7 +583,6 @@ export default {
           }
         );
 
-
       // ======================================
       // ElevenLabsエラー
       // ======================================
@@ -449,7 +592,6 @@ export default {
         const errorText =
           await elevenResponse.text();
 
-
         return new Response(
           JSON.stringify({
 
@@ -458,6 +600,13 @@ export default {
             reply: reply,
 
             audio: null,
+
+            web_search:
+              needsWebSearch ||
+              needsJobSearch,
+
+            job_search:
+              needsJobSearch,
 
             error:
               "ElevenLabs音声生成に失敗しました",
@@ -470,7 +619,6 @@ export default {
             status: 500,
 
             headers: {
-
               "Content-Type":
                 "application/json; charset=UTF-8",
 
@@ -480,7 +628,6 @@ export default {
         );
       }
 
-
       // ======================================
       // 音声データ
       // ======================================
@@ -488,7 +635,6 @@ export default {
       const audio =
         await elevenResponse
           .arrayBuffer();
-
 
       if (
         !audio ||
@@ -512,7 +658,6 @@ export default {
             status: 500,
 
             headers: {
-
               "Content-Type":
                 "application/json; charset=UTF-8",
 
@@ -521,7 +666,6 @@ export default {
           }
         );
       }
-
 
       // ======================================
       // ArrayBuffer → Base64
@@ -532,13 +676,10 @@ export default {
           audio
         );
 
-
       let binary = "";
-
 
       const chunkSize =
         0x8000;
-
 
       for (
         let i = 0;
@@ -558,10 +699,8 @@ export default {
           );
       }
 
-
       const audioBase64 =
         btoa(binary);
-
 
       // ======================================
       // 完成レスポンス
@@ -573,7 +712,8 @@ export default {
 
           ok: true,
 
-          reply: reply,
+          reply:
+            reply,
 
           audio:
             audioBase64,
@@ -585,7 +725,11 @@ export default {
             audio.byteLength,
 
           web_search:
-            needsWebSearch
+            needsWebSearch ||
+            needsJobSearch,
+
+          job_search:
+            needsJobSearch
 
         }),
 
@@ -605,14 +749,12 @@ export default {
         }
       );
 
-
     } catch (error) {
 
       console.error(
         "WORKER ERROR:",
         error
       );
-
 
       return new Response(
 
