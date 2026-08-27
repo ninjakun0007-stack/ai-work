@@ -8,13 +8,11 @@ const SpeechRecognition =
   window.webkitSpeechRecognition;
 
 let recognition = null;
-let stopRecognition = null;
 
 let listening = false;
 let speaking = false;
 let conversationStarted = false;
 let starting = false;
-let stopActive = false;
 
 
 // ========================================
@@ -60,8 +58,6 @@ function stopSpeaking() {
 
   speaking = false;
 
-  stopStopRecognition();
-
   statusText.textContent =
     "🔇 停止しました";
 
@@ -86,6 +82,7 @@ function stopSpeaking() {
 function getJarvisReply(text) {
 
   const value = text.trim();
+
 
   if (isStopCommand(value)) {
     return "";
@@ -140,40 +137,11 @@ function getJarvisReply(text) {
 
 
   if (
-    value.includes("今日") &&
-    (
-      value.includes("何日") ||
-      value.includes("日付")
-    )
-  ) {
-
-    const now = new Date();
-
-    return "今日は" +
-      now.toLocaleDateString(
-        "ja-JP"
-      ) +
-      "です。";
-  }
-
-
-  if (
-    value.includes("天気") ||
-    value.includes("気温") ||
-    value.includes("降水確率")
-  ) {
-
-    return "現在の0円版JARVISでは、リアルタイム天気にはまだ接続していません。";
-  }
-
-
-  if (
     value.includes("求人") ||
-    value.includes("仕事を探して") ||
-    value.includes("仕事探して")
+    value.includes("仕事")
   ) {
 
-    return "求人検索機能は、無料で使える検索システムとして次の段階で追加できます。";
+    return "求人検索機能ですね。現在は0円版JARVISとして動作しています。";
   }
 
 
@@ -182,7 +150,7 @@ function getJarvisReply(text) {
     value.includes("調べて")
   ) {
 
-    return "Web検索機能は、次の段階で無料構成に追加できます。";
+    return "検索機能ですね。現在は0円版JARVISとして動作しています。";
   }
 
 
@@ -206,7 +174,7 @@ function getJarvisReply(text) {
 
   return "「" +
     value +
-    "」と認識しました。現在は0円版JARVISとして動作しています。";
+    "」と認識しました。";
 }
 
 
@@ -220,17 +188,20 @@ function speak(text) {
     return;
   }
 
+
   console.log(
-    "SPEAK:",
+    "JARVIS SPEAK:",
     text
   );
 
-  // 前の音声を停止
+
   window.speechSynthesis.cancel();
 
 
   const utterance =
-    new SpeechSynthesisUtterance(text);
+    new SpeechSynthesisUtterance(
+      text
+    );
 
 
   utterance.lang =
@@ -257,8 +228,6 @@ function speak(text) {
 
       statusText.textContent =
         "🔊 JARVISが話しています";
-
-      startStopRecognition();
     };
 
 
@@ -270,8 +239,6 @@ function speak(text) {
       );
 
       speaking = false;
-
-      stopStopRecognition();
 
       statusText.textContent =
         "待機中";
@@ -290,8 +257,6 @@ function speak(text) {
 
       speaking = false;
 
-      stopStopRecognition();
-
       statusText.textContent =
         "音声エラー";
 
@@ -299,149 +264,14 @@ function speak(text) {
     };
 
 
-  // iPhone Safari対策
-  setTimeout(() => {
-
-    window.speechSynthesis.speak(
-      utterance
-    );
-
-  }, 100);
+  window.speechSynthesis.speak(
+    utterance
+  );
 }
 
 
 // ========================================
-// ストップ専用認識
-// ========================================
-
-function startStopRecognition() {
-
-  if (!SpeechRecognition) {
-    return;
-  }
-
-  if (stopActive) {
-    return;
-  }
-
-  try {
-
-    stopRecognition =
-      new SpeechRecognition();
-
-    stopRecognition.lang =
-      "ja-JP";
-
-    stopRecognition.continuous =
-      true;
-
-    stopRecognition.interimResults =
-      true;
-
-    stopRecognition.maxAlternatives =
-      1;
-
-
-    stopRecognition.onresult =
-      (event) => {
-
-        for (
-          let i = event.resultIndex;
-          i < event.results.length;
-          i++
-        ) {
-
-          const text =
-            event.results[i][0]
-              .transcript
-              .trim();
-
-          console.log(
-            "STOP LISTENER:",
-            text
-          );
-
-
-          if (
-            isStopCommand(text)
-          ) {
-
-            stopSpeaking();
-
-            return;
-          }
-        }
-      };
-
-
-    stopRecognition.onerror =
-      (event) => {
-
-        console.log(
-          "STOP ERROR:",
-          event.error
-        );
-
-        stopActive = false;
-      };
-
-
-    stopRecognition.onend =
-      () => {
-
-        stopActive = false;
-
-        if (speaking) {
-
-          setTimeout(() => {
-
-            startStopRecognition();
-
-          }, 300);
-        }
-      };
-
-
-    stopRecognition.start();
-
-    stopActive = true;
-
-  } catch (error) {
-
-    console.log(
-      "STOP START ERROR:",
-      error.message
-    );
-
-    stopActive = false;
-  }
-}
-
-
-// ========================================
-// ストップ認識終了
-// ========================================
-
-function stopStopRecognition() {
-
-  if (!stopRecognition) {
-    return;
-  }
-
-  try {
-
-    stopRecognition.stop();
-
-  } catch (_) {}
-
-  stopRecognition = null;
-
-  stopActive = false;
-}
-
-
-// ========================================
-// 通常音声認識
+// 音声認識
 // ========================================
 
 function createRecognition() {
@@ -525,7 +355,11 @@ function createRecognition() {
         reply;
 
 
-      // 必ず音声にする
+      // ==================================
+      // 重要
+      // 回答を必ず音声化
+      // ==================================
+
       speak(reply);
     };
 
@@ -534,6 +368,7 @@ function createRecognition() {
     (event) => {
 
       listening = false;
+
 
       console.log(
         "RECOGNITION ERROR:",
@@ -577,14 +412,9 @@ function createRecognition() {
 
       listening = false;
 
-      if (
-        talkButton &&
-        !speaking
-      ) {
-
-        talkButton.textContent =
-          "🎙️ 話す";
-      }
+      console.log(
+        "RECOGNITION END"
+      );
     };
 
 
@@ -630,6 +460,7 @@ function startListening() {
 
 
     if (!recognition) {
+
       throw new Error(
         "音声認識を作成できません"
       );
@@ -686,6 +517,7 @@ function restartListening() {
     return;
   }
 
+
   if (speaking) {
     return;
   }
@@ -718,12 +550,38 @@ if (talkButton) {
 
       conversationStarted = true;
 
+
+      // iPhone Safariの音声機能を
+      // ユーザー操作中に起動
+
+      window.speechSynthesis.cancel();
+
+
+      const unlock =
+        new SpeechSynthesisUtterance(
+          ""
+        );
+
+
+      unlock.lang =
+        "ja-JP";
+
+      unlock.volume =
+        0;
+
+
+      window.speechSynthesis.speak(
+        unlock
+      );
+
+
       if (speaking) {
 
         stopSpeaking();
 
         return;
       }
+
 
       startListening();
     }
