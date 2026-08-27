@@ -195,7 +195,15 @@ function speak(text) {
   );
 
 
-  window.speechSynthesis.cancel();
+  const synth =
+    window.speechSynthesis;
+
+
+  // 現在の音声があれば停止
+  if (synth.speaking) {
+
+    synth.cancel();
+  }
 
 
   const utterance =
@@ -264,9 +272,14 @@ function speak(text) {
     };
 
 
-  window.speechSynthesis.speak(
-    utterance
-  );
+  // iPhone Safari対策
+  setTimeout(() => {
+
+    synth.speak(
+      utterance
+    );
+
+  }, 150);
 }
 
 
@@ -355,11 +368,7 @@ function createRecognition() {
         reply;
 
 
-      // ==================================
-      // 重要
-      // 回答を必ず音声化
-      // ==================================
-
+      // JARVIS回答を音声化
       speak(reply);
     };
 
@@ -548,14 +557,12 @@ if (talkButton) {
     "click",
     () => {
 
-      conversationStarted = true;
+      conversationStarted =
+        true;
 
 
       // iPhone Safariの音声機能を
-      // ユーザー操作中に起動
-
-      window.speechSynthesis.cancel();
-
+      // ユーザー操作中に一度起動する
 
       const unlock =
         new SpeechSynthesisUtterance(
