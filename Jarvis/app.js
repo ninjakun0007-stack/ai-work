@@ -9,6 +9,7 @@ const SpeechRecognition =
   window.webkitSpeechRecognition;
 
 let recognition = null;
+
 let listening = false;
 let speaking = false;
 let conversationStarted = false;
@@ -55,11 +56,13 @@ function searchWeb(text) {
     .replace(/調べて/g, "")
     .trim();
 
+
   if (!query) {
 
     query = "最新ニュース";
 
   }
+
 
   message.textContent =
     "「" + query + "」を検索します";
@@ -67,14 +70,21 @@ function searchWeb(text) {
   statusText.textContent =
     "🔎 Web検索中";
 
+
   const url =
     "https://www.google.com/search?q=" +
     encodeURIComponent(query);
 
-  window.open(
-    url,
-    "_blank"
-  );
+
+  // iPhone Safariで確実に開くため
+  // 現在のページを検索ページへ移動
+
+  setTimeout(() => {
+
+    window.location.href =
+      url;
+
+  }, 200);
 
 }
 
@@ -91,6 +101,7 @@ function stopSpeaking() {
 
   speaking = false;
 
+
   if (recognition) {
 
     try {
@@ -98,17 +109,24 @@ function stopSpeaking() {
     } catch (_) {}
 
     recognition = null;
+
   }
+
 
   listening = false;
 
+
   if (talkButton) {
+
     talkButton.textContent =
       "🎙️ 話す";
+
   }
+
 
   statusText.textContent =
     "🔇 停止しました";
+
 
   message.textContent =
     "JARVISを停止しました";
@@ -127,11 +145,16 @@ function getJarvisReply(text) {
 
 
   if (isStopCommand(value)) {
+
     return "";
+
   }
 
 
+  // ======================================
   // 検索
+  // ======================================
+
   if (
     value.includes("検索") ||
     value.includes("調べて")
@@ -144,6 +167,10 @@ function getJarvisReply(text) {
   }
 
 
+  // ======================================
+  // あいさつ
+  // ======================================
+
   if (
     value.includes("こんにちは") ||
     value.includes("こんばんは") ||
@@ -155,6 +182,10 @@ function getJarvisReply(text) {
   }
 
 
+  // ======================================
+  // 名前
+  // ======================================
+
   if (
     value.includes("名前") ||
     value.includes("あなたは誰")
@@ -164,6 +195,10 @@ function getJarvisReply(text) {
 
   }
 
+
+  // ======================================
+  // 状態
+  // ======================================
 
   if (
     value.includes("元気") ||
@@ -175,6 +210,10 @@ function getJarvisReply(text) {
   }
 
 
+  // ======================================
+  // 時刻
+  // ======================================
+
   if (
     value.includes("何時") ||
     value.includes("時間")
@@ -182,6 +221,7 @@ function getJarvisReply(text) {
 
     const now =
       new Date();
+
 
     return (
       "現在の時刻は" +
@@ -198,15 +238,23 @@ function getJarvisReply(text) {
   }
 
 
+  // ======================================
+  // 求人
+  // ======================================
+
   if (
     value.includes("求人") ||
     value.includes("仕事")
   ) {
 
-    return "求人についてですね。検索していただければ、Web検索を開きます。";
+    return "求人についてですね。「検索して」と言って条件を指定してください。";
 
   }
 
+
+  // ======================================
+  // テスト
+  // ======================================
 
   if (
     value.includes("テスト")
@@ -216,6 +264,10 @@ function getJarvisReply(text) {
 
   }
 
+
+  // ======================================
+  // 終了
+  // ======================================
 
   if (
     value.includes("終了")
@@ -274,7 +326,9 @@ function speak(text) {
   utterance.onstart =
     () => {
 
-      speaking = true;
+      speaking =
+        true;
+
 
       statusText.textContent =
         "🔊 JARVISが話しています";
@@ -285,12 +339,15 @@ function speak(text) {
   utterance.onend =
     () => {
 
-      speaking = false;
+      speaking =
+        false;
+
 
       if (!manualStop) {
 
         statusText.textContent =
           "待機中";
+
 
         if (talkButton) {
 
@@ -307,7 +364,9 @@ function speak(text) {
   utterance.onerror =
     () => {
 
-      speaking = false;
+      speaking =
+        false;
+
 
       statusText.textContent =
         "音声エラー";
@@ -340,11 +399,14 @@ function createRecognition() {
   r.lang =
     "ja-JP";
 
+
   r.continuous =
     false;
 
+
   r.interimResults =
     false;
+
 
   r.maxAlternatives =
     1;
@@ -353,7 +415,8 @@ function createRecognition() {
   r.onresult =
     (event) => {
 
-      listening = false;
+      listening =
+        false;
 
 
       const text =
@@ -368,7 +431,9 @@ function createRecognition() {
       );
 
 
-      if (isStopCommand(text)) {
+      if (
+        isStopCommand(text)
+      ) {
 
         stopSpeaking();
 
@@ -407,7 +472,9 @@ function createRecognition() {
   r.onerror =
     (event) => {
 
-      listening = false;
+      listening =
+        false;
+
 
       console.log(
         "RECOGNITION ERROR:",
@@ -423,8 +490,10 @@ function createRecognition() {
         statusText.textContent =
           "マイク許可が必要です";
 
+
         message.textContent =
           "Safariのマイク許可を確認してください";
+
 
         return;
 
@@ -440,7 +509,8 @@ function createRecognition() {
   r.onend =
     () => {
 
-      listening = false;
+      listening =
+        false;
 
     };
 
@@ -486,6 +556,15 @@ function startListening() {
       createRecognition();
 
 
+    if (!recognition) {
+
+      throw new Error(
+        "音声認識を作成できません"
+      );
+
+    }
+
+
     listening =
       true;
 
@@ -508,17 +587,26 @@ function startListening() {
 
     recognition.start();
 
+  }
 
-  } catch (error) {
+  catch (error) {
 
     console.log(
-      error
+      "MIC ERROR:",
+      error.message
     );
+
 
     listening =
       false;
 
-  } finally {
+
+    recognition =
+      null;
+
+  }
+
+  finally {
 
     starting =
       false;
@@ -541,10 +629,13 @@ if (talkButton) {
       conversationStarted =
         true;
 
+
       manualStop =
         false;
 
+
       window.speechSynthesis.cancel();
+
 
       startListening();
 
@@ -589,14 +680,18 @@ if (audioTestButton) {
       conversationStarted =
         true;
 
+
       manualStop =
         false;
+
 
       const text =
         "JARVIS音声テストです。正常に動作しています。";
 
+
       message.textContent =
         text;
+
 
       speak(text);
 
@@ -617,8 +712,10 @@ window.addEventListener(
     message.textContent =
       "JARVIS起動完了";
 
+
     statusText.textContent =
       "🎙️ 話すボタンをタップしてください";
+
 
     if (talkButton) {
 
@@ -626,6 +723,7 @@ window.addEventListener(
         "🎙️ 話す";
 
     }
+
 
     if (stopButton) {
 
