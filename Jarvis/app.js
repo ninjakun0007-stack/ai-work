@@ -1,4 +1,5 @@
 const talkButton = document.getElementById("talkButton");
+const stopButton = document.getElementById("stopButton");
 const audioTestButton = document.getElementById("audioTestButton");
 const message = document.getElementById("message");
 const statusText = document.getElementById("statusText");
@@ -8,60 +9,13 @@ const SpeechRecognition =
   window.webkitSpeechRecognition;
 
 let recognition = null;
+let stopRecognition = null;
 
 let listening = false;
 let speaking = false;
 let conversationStarted = false;
 let starting = false;
-
-
-// ========================================
-// 停止ボタンを作成
-// ========================================
-
-let stopButton =
-  document.getElementById("stopButton");
-
-if (!stopButton && talkButton) {
-
-  stopButton =
-    document.createElement("button");
-
-  stopButton.id =
-    "stopButton";
-
-  stopButton.textContent =
-    "⏹️ 停止";
-
-  stopButton.style.display =
-    "none";
-
-  stopButton.style.marginTop =
-    "10px";
-
-  stopButton.style.background =
-    "#8b0000";
-
-  stopButton.style.color =
-    "white";
-
-  stopButton.style.border =
-    "none";
-
-  stopButton.style.padding =
-    "12px 24px";
-
-  stopButton.style.borderRadius =
-    "8px";
-
-  stopButton.style.fontSize =
-    "16px";
-
-  talkButton.insertAdjacentElement(
-    "afterend",
-    stopButton
-  );
-}
+let stopListening = false;
 
 
 // ========================================
@@ -70,13 +24,9 @@ if (!stopButton && talkButton) {
 
 function isStopCommand(text) {
 
-  const value =
-    String(text || "")
-      .trim()
-      .replace(
-        /[！!。．、,？?]/g,
-        ""
-      );
+  const value = String(text || "")
+    .trim()
+    .replace(/[！!。．、,？?]/g, "");
 
   const commands = [
     "ストップ",
@@ -93,81 +43,234 @@ function isStopCommand(text) {
     "音声停止"
   ];
 
-  return commands.some(
-    command =>
-      value.includes(command)
+  return commands.some(command =>
+    value.includes(command)
   );
 }
 
 
 // ========================================
-// JARVIS音声停止
+// 音声停止
 // ========================================
 
 function stopSpeaking() {
 
-  console.log(
-    "JARVIS STOP"
-  );
+  console.log("JARVIS STOP");
 
-
-  // ブラウザ音声を即停止
+  // iPhone標準音声を即停止
   window.speechSynthesis.cancel();
 
+  speaking = false;
 
-  speaking =
-    false;
-
+  stopStopRecognition();
 
   if (stopButton) {
-
-    stopButton.style.display =
-      "none";
+    stopButton.style.display = "block";
   }
-
 
   if (talkButton) {
-
-    talkButton.textContent =
-      "🎙️ 話す";
+    talkButton.textContent = "🎙️ 話す";
   }
-
 
   statusText.textContent =
     "🔇 停止しました";
 
-
   message.textContent =
     "JARVISの音声を停止しました";
 
+  listening = false;
 
-  // 音声認識も停止
   if (recognition) {
 
     try {
-
       recognition.abort();
-
     } catch (_) {}
 
-    recognition =
-      null;
+    recognition = null;
   }
 
-
-  listening =
-    false;
-
-
-  // 会話を続けられるようにする
+  // 会話を継続
   if (conversationStarted) {
 
     setTimeout(() => {
 
-      startListening();
+      if (
+        conversationStarted &&
+        !speaking &&
+        !listening
+      ) {
+
+        startListening();
+
+      }
 
     }, 500);
   }
+}
+
+
+// ========================================
+// ストップ監視開始
+// ========================================
+
+function startStopRecognition() {
+
+  if (!SpeechRecognition) {
+    return;
+  }
+
+  if (stopListening) {
+    return;
+  }
+
+  try {
+
+    stopRecognition =
+      new SpeechRecognition();
+
+    stopRecognition.lang =
+      "ja-JP";
+
+    stopRecognition.continuous =
+      true;
+
+    stopRecognition.interimResults =
+      true;
+
+    stopRecognition.maxAlternatives =
+      1;
+
+
+    stopRecognition.onresult =
+      (event) => {
+
+        for (
+          let i = event.resultIndex;
+          i < event.results.length;
+          i++
+        ) {
+
+          const text =
+            event.results[i][0]
+              .transcript
+              .trim();
+
+          console.log(
+            "STOP CHECK:",
+            text
+          );
+
+          if (
+            isStopCommand(text)
+          ) {
+
+            stopSpeaking();
+
+            return;
+          }
+        }
+      };
+
+
+    stopRecognition.onerror =
+      (event) => {
+
+        console.log(
+          "STOP LISTENER ERROR:",
+          event.error
+        );
+
+        stopListening =
+          false;
+
+        stopRecognition =
+          null;
+
+        // JARVISが話しているなら再起動
+        if (speaking) {
+
+          setTimeout(() => {
+            startStopRecognition();
+          }, 300);
+        }
+      };
+
+
+    stopRecognition.onend =
+      () => {
+
+        stopListening =
+          false;
+
+        stopRecognition =
+          null;
+
+        // 話している間は監視を再開
+        if (speaking) {
+
+          setTimeout(() => {
+            startStopRecognition();
+          }, 300);
+        }
+      };
+
+
+    stopRecognition.start();
+
+    stopListening =
+      true;
+
+    console.log(
+      "STOP LISTENER STARTED"
+    );
+
+  } catch (error) {
+
+    console.log(
+      "STOP LISTENER ERROR:",
+      error.message
+    );
+
+    stopListening =
+      false;
+
+    stopRecognition =
+      null;
+  }
+}
+
+
+// ========================================
+// ストップ監視停止
+// ========================================
+
+function stopStopRecognition() {
+
+  if (!stopRecognition) {
+
+    stopListening =
+      false;
+
+    return;
+  }
+
+  try {
+
+    stopRecognition.onend =
+      null;
+
+    stopRecognition.onerror =
+      null;
+
+    stopRecognition.stop();
+
+  } catch (_) {}
+
+  stopRecognition =
+    null;
+
+  stopListening =
+    false;
 }
 
 
@@ -182,7 +285,6 @@ function getJarvisReply(text) {
 
 
   if (isStopCommand(value)) {
-
     return "";
   }
 
@@ -283,7 +385,7 @@ function getJarvisReply(text) {
 
 
 // ========================================
-// iPhone標準音声
+// iPhone音声
 // ========================================
 
 function speak(text) {
@@ -293,17 +395,10 @@ function speak(text) {
   }
 
 
-  console.log(
-    "JARVIS SPEAK:",
-    text
-  );
-
-
   const synth =
     window.speechSynthesis;
 
 
-  // 以前の音声を停止
   synth.cancel();
 
 
@@ -316,14 +411,11 @@ function speak(text) {
   utterance.lang =
     "ja-JP";
 
-
   utterance.rate =
     0.95;
 
-
   utterance.pitch =
     1.0;
-
 
   utterance.volume =
     1.0;
@@ -332,18 +424,11 @@ function speak(text) {
   utterance.onstart =
     () => {
 
-      console.log(
-        "SPEECH START"
-      );
-
-
       speaking =
         true;
 
-
       statusText.textContent =
         "🔊 JARVISが話しています";
-
 
       if (stopButton) {
 
@@ -351,44 +436,35 @@ function speak(text) {
           "block";
       }
 
-
       if (talkButton) {
 
         talkButton.textContent =
           "🔊 話しています";
       }
+
+      // ★ここが重要
+      // 話し始めた瞬間から
+      // 「ストップ」を監視
+      startStopRecognition();
     };
 
 
   utterance.onend =
     () => {
 
-      console.log(
-        "SPEECH END"
-      );
-
-
       speaking =
         false;
 
+      stopStopRecognition();
 
-      if (stopButton) {
-
-        stopButton.style.display =
-          "none";
-      }
-
+      statusText.textContent =
+        "待機中";
 
       if (talkButton) {
 
         talkButton.textContent =
           "🎙️ 話す";
       }
-
-
-      statusText.textContent =
-        "待機中";
-
 
       restartListening();
     };
@@ -402,57 +478,31 @@ function speak(text) {
         event.error
       );
 
-
       speaking =
         false;
 
-
-      if (stopButton) {
-
-        stopButton.style.display =
-          "none";
-      }
-
-
-      if (talkButton) {
-
-        talkButton.textContent =
-          "🎙️ 話す";
-      }
-
+      stopStopRecognition();
 
       statusText.textContent =
         "音声エラー";
-
 
       restartListening();
     };
 
 
-  // iPhone Safari対策
-  setTimeout(() => {
-
-    if (
-      conversationStarted
-    ) {
-
-      synth.speak(
-        utterance
-      );
-    }
-
-  }, 100);
+  synth.speak(
+    utterance
+  );
 }
 
 
 // ========================================
-// 音声認識作成
+// 通常音声認識
 // ========================================
 
 function createRecognition() {
 
   if (!SpeechRecognition) {
-
     return null;
   }
 
@@ -464,14 +514,11 @@ function createRecognition() {
   r.lang =
     "ja-JP";
 
-
   r.continuous =
     false;
 
-
   r.interimResults =
     false;
-
 
   r.maxAlternatives =
     1;
@@ -525,13 +572,10 @@ function createRecognition() {
 
 
       const reply =
-        getJarvisReply(
-          text
-        );
+        getJarvisReply(text);
 
 
       if (!reply) {
-
         return;
       }
 
@@ -550,7 +594,6 @@ function createRecognition() {
       listening =
         false;
 
-
       console.log(
         "RECOGNITION ERROR:",
         event.error
@@ -565,10 +608,8 @@ function createRecognition() {
         statusText.textContent =
           "マイク許可が必要です";
 
-
         message.textContent =
           "Safariのマイク許可を確認してください";
-
 
         return;
       }
@@ -586,7 +627,6 @@ function createRecognition() {
       statusText.textContent =
         "音声入力エラー";
 
-
       restartListening();
     };
 
@@ -596,7 +636,6 @@ function createRecognition() {
 
       listening =
         false;
-
 
       console.log(
         "RECOGNITION END"
@@ -619,10 +658,8 @@ function startListening() {
     message.textContent =
       "このSafariでは音声入力を利用できません";
 
-
     statusText.textContent =
       "音声認識非対応";
-
 
     return;
   }
@@ -677,7 +714,6 @@ function startListening() {
 
     recognition.start();
 
-
   } catch (error) {
 
     console.log(
@@ -685,10 +721,8 @@ function startListening() {
       error.message
     );
 
-
     listening =
       false;
-
 
     statusText.textContent =
       "待機中";
@@ -708,13 +742,11 @@ function startListening() {
 function restartListening() {
 
   if (!conversationStarted) {
-
     return;
   }
 
 
   if (speaking) {
-
     return;
   }
 
@@ -728,6 +760,7 @@ function restartListening() {
     ) {
 
       startListening();
+
     }
 
   }, 800);
@@ -756,7 +789,6 @@ if (talkButton) {
       }
 
 
-      // iPhone Safari音声解除
       const unlock =
         new SpeechSynthesisUtterance(
           ""
@@ -765,7 +797,6 @@ if (talkButton) {
 
       unlock.lang =
         "ja-JP";
-
 
       unlock.volume =
         0;
@@ -788,11 +819,16 @@ if (talkButton) {
 
 if (stopButton) {
 
+  stopButton.style.display =
+    "block";
+
+
   stopButton.addEventListener(
     "click",
     () => {
 
       stopSpeaking();
+
     }
   );
 }
@@ -811,14 +847,11 @@ if (audioTestButton) {
       conversationStarted =
         true;
 
-
       const text =
         "JARVIS音声テストです。正常に動作しています。";
 
-
       message.textContent =
         text;
-
 
       speak(text);
     }
@@ -837,10 +870,8 @@ window.addEventListener(
     message.textContent =
       "JARVIS起動完了";
 
-
     statusText.textContent =
       "🎙️ 話すボタンをタップしてください";
-
 
     if (talkButton) {
 
@@ -848,11 +879,10 @@ window.addEventListener(
         "🎙️ 話す";
     }
 
-
     if (stopButton) {
 
       stopButton.style.display =
-        "none";
+        "block";
     }
   }
 );
